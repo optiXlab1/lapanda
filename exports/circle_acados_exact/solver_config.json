@@ -1,0 +1,17 @@
+{
+  "method": "acados",
+  "problem": "circle",
+  "backend": "C interface",
+  "hessian": "EXACT",
+  "horizon": 20,
+  "dynamics": "discrete bicycle",
+  "tolerance": {
+    "nlp_tol_reference": 0.002
+  },
+  "runtime_overrides": {
+    "standalone_env": "ACADOS_TOL",
+    "ros_private_param": "acados_tol"
+  },
+  "expected_status": 0,
+  "notes": "Default is generated from the 2e-3 circle result. Use ACADOS_TOL=1e-4 to override tol_stat/tol_eq/tol_ineq/tol_comp at runtime."
+}

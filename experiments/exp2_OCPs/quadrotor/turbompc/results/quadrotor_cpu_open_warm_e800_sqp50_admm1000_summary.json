@@ -1,0 +1,34 @@
+{
+  "model": "quadrotor",
+  "device": "cpu",
+  "source": "merged from e500 full run plus resume501_to800 continuation",
+  "completed_epochs": 800,
+  "loss_first": 415.9317022782318,
+  "loss_last": 214.96784044106005,
+  "loss_best": 213.91163737832412,
+  "tail50_forward_time_ms": 20.011070665641455,
+  "tail50_backward_time_ms": 18.96775960267405,
+  "tail50_value_grad_time_ms": 38.95993445359636,
+  "tail50_total_sample_time_ms": 38.95993445359636,
+  "avg_constraint_violation_inf": 4.189122733737506e-05,
+  "max_constraint_violation_inf": 0.0028348990435388965,
+  "theta_initial": [
+    0.5118216247002567,
+    0.9504636963259353,
+    0.14415961271963373,
+    0.9486494471372439,
+    0.31183145201048545,
+    0.42332644897257565,
+    0.35
+  ],
+  "theta_final": [
+    0.7272068543098348,
+    0.9267835061873534,
+    0.14594670838027685,
+    0.9232412741175865,
+    0.0021688007143975396,
+    0.31900514508460454,
+    0.35
+  ],
+  "csv_path": "./experiments\\exp3_OCPs\\quadrotor\\turbompc\\results\\quadrotor_cpu_open_warm_e800_sqp50_admm1000_metrics.csv"
+}

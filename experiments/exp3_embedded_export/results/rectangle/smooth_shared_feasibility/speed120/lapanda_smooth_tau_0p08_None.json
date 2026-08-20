@@ -1,0 +1,9 @@
+{
+  "solver": "lapanda",
+  "mode": "smooth",
+  "tau": 0.08,
+  "guess_source": null,
+  "forward_hessian": null,
+  "success": false,
+  "exception": "CalledProcessError(2, ['cmake', '--build', 'F:\\\\CodeInJLU\\\\About_PANOC\\\\lapanda\\\\.LAPANDA_cache\\\\mpcc\\\\lse0p08\\\\n20_t2p4_v1p2_l0p45_d0p436332_o1\\\\rectangle_mpcc_diag_lse0p08_n20_t2p4_v1p2_l0p45_d0p436332_o1_044432aa3cbaeeb7\\\\build', '--config', 'Release'])"
+}

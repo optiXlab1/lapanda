@@ -1,0 +1,32 @@
+{
+  "model": "two_link_arm",
+  "horizon": 20,
+  "epochs": 800,
+  "tol": 0.001,
+  "learning_rate": 0.002,
+  "sensitivity_mode": "coc",
+  "barrier_gamma": null,
+  "theta_true": [
+    0.8,
+    8.0,
+    0.02,
+    0.02,
+    0.12
+  ],
+  "theta_initial": [
+    0.5118216247002567,
+    0.9504636963259353,
+    0.14415961271963373,
+    0.4,
+    0.06349896734588635
+  ],
+  "theta_init_mode": "uniform01",
+  "seed": 1,
+  "teacher_rollout_samples": 32,
+  "teacher_rollout_source": "./experiments\\exp3_OCPs\\robot_arm\\results\\exp5_robot_arm_expert32_h20_seed0.mpc_snapshots.npz",
+  "measure_memory": false,
+  "memory_only": false,
+  "problem_build_time_sec": 0.013583499938249588,
+  "solver_build_time_sec": 0.0027753999456763268,
+  "build_time_sec": 0.016358899883925915
+}

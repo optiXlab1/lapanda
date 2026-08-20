@@ -1,0 +1,37 @@
+{
+  "model": "planar_quadrotor",
+  "horizon": 20,
+  "epochs": 500,
+  "steps": 50,
+  "tol": 0.001,
+  "learning_rate": 0.001,
+  "sensitivity_mode": "coc",
+  "barrier_gamma": null,
+  "theta_true": [
+    4.0,
+    0.8,
+    12.0,
+    0.5,
+    0.02,
+    0.08,
+    0.08
+  ],
+  "theta_initial": [
+    1.2,
+    0.25,
+    4.0,
+    0.15,
+    0.08,
+    0.25,
+    0.02
+  ],
+  "theta_init_mode": "default",
+  "epoch_offset": 0,
+  "seed": 1,
+  "teacher_rollout_source": "./experiments\\exp3_OCPs\\quadrotor\\results\\exp4_quadrotor_mpc_lapanda_teacher.mpc_snapshots.npz",
+  "measure_memory": false,
+  "memory_only": false,
+  "problem_build_time_sec": 0.0128262999933213,
+  "solver_build_time_sec": 0.002055399992968887,
+  "build_time_sec": 0.014881699986290187
+}

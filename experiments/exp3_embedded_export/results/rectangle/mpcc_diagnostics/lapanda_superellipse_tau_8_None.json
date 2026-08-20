@@ -1,0 +1,9 @@
+{
+  "solver": "lapanda",
+  "mode": "superellipse",
+  "tau": 8.0,
+  "guess_source": null,
+  "forward_hessian": null,
+  "success": false,
+  "exception": "CalledProcessError(2, ['cmake', '--build', 'F:\\\\CodeInJLU\\\\About_PANOC\\\\lapanda\\\\.LAPANDA_cache\\\\rectangle_mpcc_diagnostics\\\\superellipse_tau_8\\\\rectangle_mpcc_diag_superellipse_tau_8_7fd438a550fd9e8a\\\\build', '--config', 'Release'])"
+}

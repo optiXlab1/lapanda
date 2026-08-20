@@ -1,0 +1,173 @@
+﻿diff --git a/SafePDP/PDP.py b/SafePDP/PDP.py
+index cf143f1..fb2d358 100644
+--- a/SafePDP/PDP.py
++++ b/SafePDP/PDP.py
+@@ -118,7 +118,7 @@ class OCSys:
+         self.final_cost = final_cost
+         self.final_cost_fn = casadi.Function('final_cost', [self.state, self.auxvar], [self.final_cost])
+ 
+-    def ocSolver(self, ini_state, horizon, auxvar_value=1, print_level=0, costate_option=0):
++    def ocSolver(self, ini_state, horizon, auxvar_value=1, print_level=0, costate_option=0, control_traj0=None):
+         assert hasattr(self, 'state'), "Define the state variable first!"
+         assert hasattr(self, 'control'), "Define the control variable first!"
+         assert hasattr(self, 'dyn'), "Define the system dynamics first!"
+@@ -128,6 +128,13 @@ class OCSys:
+         if type(ini_state) == numpy.ndarray:
+             ini_state = ini_state.flatten().tolist()
+ 
++        if control_traj0 is not None:
++            control_traj0 = numpy.asarray(control_traj0, dtype=float)
++            if control_traj0.ndim == 1:
++                control_traj0 = numpy.reshape(control_traj0, (-1, self.n_control))
++            if numpy.size(control_traj0, 0) != horizon:
++                control_traj0 = None
++
+         # Start with an empty NLP
+         w = []
+         w0 = []
+@@ -144,6 +151,7 @@ class OCSys:
+         lbw += ini_state
+         ubw += ini_state
+         w0 += ini_state
++        Xk_guess = numpy.asarray(ini_state, dtype=float).reshape(-1)
+ 
+         # Formulate the NLP
+         for k in range(horizon):
+@@ -152,7 +160,11 @@ class OCSys:
+             w += [Uk]
+             lbw += self.control_lb
+             ubw += self.control_ub
+-            w0 += [0.5 * (x + y) for x, y in zip(self.control_lb, self.control_ub)]
++            if control_traj0 is not None:
++                Uk_guess = numpy.asarray(control_traj0[k, :], dtype=float).reshape(-1).tolist()
++            else:
++                Uk_guess = [0.5 * (x + y) for x, y in zip(self.control_lb, self.control_ub)]
++            w0 += Uk_guess
+ 
+             # Integrate till the end of the interval
+             Xnext = self.dyn_fn(Xk, Uk, auxvar_value)
+@@ -164,7 +176,12 @@ class OCSys:
+             w += [Xk]
+             lbw += self.state_lb
+             ubw += self.state_ub
+-            w0 += [0.5 * (x + y) for x, y in zip(self.state_lb, self.state_ub)]
++            if control_traj0 is not None:
++                Xnext_guess = self.dyn_fn(Xk_guess, numpy.asarray(Uk_guess, dtype=float), auxvar_value).full().flatten()
++            else:
++                Xnext_guess = [0.5 * (x + y) for x, y in zip(self.state_lb, self.state_ub)]
++            w0 += numpy.asarray(Xnext_guess, dtype=float).reshape(-1).tolist()
++            Xk_guess = numpy.asarray(Xnext_guess, dtype=float).reshape(-1)
+ 
+             # Add equality constraint
+             g += [Xnext - Xk]
+diff --git a/SafePDP/SafePDP.py b/SafePDP/SafePDP.py
+index 225165e..298e8a9 100644
+--- a/SafePDP/SafePDP.py
++++ b/SafePDP/SafePDP.py
+@@ -156,7 +156,7 @@ class COCsys:
+             self.init_condition_fn = casadi.Function('initial_condition', [self.auxvar], [self.init_condition])
+ 
+     # optimal control solver (using direct methods)
+-    def ocSolver(self, horizon, init_state=None, auxvar_value=1, print_level=0):
++    def ocSolver(self, horizon, init_state=None, auxvar_value=1, print_level=0, control_traj0=None):
+ 
+         if not hasattr(self, 'final_equ_cstr'):
+             self.setFinalEquCstr()
+@@ -174,6 +174,13 @@ class COCsys:
+         else:
+             init_state = casadi.DM(init_state).full().flatten().tolist()
+ 
++        if control_traj0 is not None:
++            control_traj0 = numpy.asarray(control_traj0, dtype=float)
++            if control_traj0.ndim == 1:
++                control_traj0 = numpy.reshape(control_traj0, (-1, self.n_control))
++            if numpy.size(control_traj0, 0) != horizon:
++                control_traj0 = None
++
+         # Start with an empty NLP
+         w = []
+         w0 = []
+@@ -190,6 +197,7 @@ class COCsys:
+         lbw += init_state
+         ubw += init_state
+         w0 += init_state
++        Xk_guess = numpy.asarray(init_state, dtype=float).reshape(-1)
+ 
+         # formulate the NLP
+         for k in range(horizon):
+@@ -198,7 +206,11 @@ class COCsys:
+             w += [Uk]
+             lbw += self.control_lb
+             ubw += self.control_ub
+-            w0 += [0.5 * (x + y) for x, y in zip(self.control_lb, self.control_ub)]
++            if control_traj0 is not None:
++                Uk_guess = numpy.asarray(control_traj0[k, :], dtype=float).reshape(-1).tolist()
++            else:
++                Uk_guess = [0.5 * (x + y) for x, y in zip(self.control_lb, self.control_ub)]
++            w0 += Uk_guess
+ 
+             # Add constraint for the path inequality if exist
+             if self.path_inequ_cstr is not None:
+@@ -222,7 +234,12 @@ class COCsys:
+             w += [Xk]
+             lbw += self.state_lb
+             ubw += self.state_ub
+-            w0 += [0.5 * (x + y) for x, y in zip(self.state_lb, self.state_ub)]
++            if control_traj0 is not None:
++                Xnext_guess = self.dyn_fn(Xk_guess, numpy.asarray(Uk_guess, dtype=float), auxvar_value).full().flatten()
++            else:
++                Xnext_guess = [0.5 * (x + y) for x, y in zip(self.state_lb, self.state_ub)]
++            w0 += numpy.asarray(Xnext_guess, dtype=float).reshape(-1).tolist()
++            Xk_guess = numpy.asarray(Xnext_guess, dtype=float).reshape(-1)
+ 
+             # Add constraint for the dynamics
+             g += [Xnext - Xk]
+@@ -516,7 +533,7 @@ class COCsys:
+         Lxe_T = [self.ddLxe_final_fn(state_traj_opt[-1, :], v_final, w_final, auxvar_value).full()]
+ 
+         if self.final_inequ_cstr is not None:
+-            Gbarx_T = self.dGx_final_fn(state_traj_opt[-1, :], auxvar_value).full()[(v_final > -threshold)]
++            Gbarx_T = self.dGx_final_fn(state_traj_opt[-1, :], auxvar_value).full()[(g_final > -threshold)]
+             Gbare_T = self.dGe_final_fn(state_traj_opt[-1, :], auxvar_value).full()[(g_final > -threshold)]
+         else:
+             Gbarx_T = np.empty((0, self.n_state))
+@@ -583,7 +600,7 @@ class COCsys:
+         self.barrier_oc = PDP.OCSys()
+         self.barrier_oc.setAuxvarVariable(self.auxvar)
+         self.barrier_oc.setStateVariable(self.state)
+-        self.barrier_oc.setControlVariable(self.control)
++        self.barrier_oc.setControlVariable(self.control, control_lb=self.control_lb, control_ub=self.control_ub)
+         self.barrier_oc.setDyn(self.dyn)
+ 
+         # natural log barrier for the inequality path constraints
+@@ -633,14 +650,19 @@ class COCsys:
+         self.lqr_solver_barrierOC = PDP.LQR()
+ 
+     # compute the unconstrained optimal control using PDP
+-    def solveBarrierOC(self, horizon, init_state=None, auxvar_value=1):
++    def solveBarrierOC(self, horizon, init_state=None, auxvar_value=1, control_traj0=None):
+ 
+         if init_state is None:
+             init_state = self.init_condition_fn(auxvar_value).full().flatten().tolist()
+         else:
+             init_state = casadi.DM(init_state).full().flatten().tolist()
+ 
+-        opt_sol = self.barrier_oc.ocSolver(ini_state=init_state, horizon=horizon, auxvar_value=auxvar_value)
++        opt_sol = self.barrier_oc.ocSolver(
++            ini_state=init_state,
++            horizon=horizon,
++            auxvar_value=auxvar_value,
++            control_traj0=control_traj0,
++        )
+ 
+         return opt_sol
+ 
+@@ -754,7 +776,7 @@ class EQCLQR:
+             # Generate the matrix Py and Zw in the equality constraint lqr paper
+             U, S, VT = np.linalg.svd(curr_Nu)
+             V = VT.T
+-            rank_S = (S > self.threshold).size
++            rank_S = np.count_nonzero(S > self.threshold)
+             if S.size == 0 or rank_S == 0:  # i.e., if the rank of curr_Nu is zero
+                 Py = np.empty((self.n_control, 0))
+                 Zw = np.eye(self.n_control)

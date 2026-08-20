@@ -1,0 +1,25 @@
+[build-system]
+requires = [
+    "scikit-build-core>=0.10",
+    "pybind11>=2.10",
+]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "lapanda"
+version = "0.1.0"
+description = "A matrix-free differentiable solver for nonconvex constrained optimization"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "casadi",
+    "numpy",
+]
+
+[tool.scikit-build]
+cmake.version = ">=3.15"
+wheel.packages = ["python/lapanda"]
+
+[tool.scikit-build.cmake.define]
+BUILD_PYTHON = "ON"
+BUILD_TESTING = "OFF"

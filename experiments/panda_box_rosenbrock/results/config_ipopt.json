@@ -1,0 +1,22 @@
+{
+  "experiment": "exp1_casadi_ipopt_box_rosenbrock",
+  "sizes": [
+    50,
+    100,
+    200,
+    500,
+    1000,
+    2000
+  ],
+  "trials": 4,
+  "tol": 0.0001,
+  "max_iter": 3000,
+  "sensitivity_size_limit": 200,
+  "sensitivity_max_iter": 100,
+  "git_commit": "unknown",
+  "machine": {
+    "platform": "Windows-10-10.0.26100-SP0",
+    "python": "3.11.7",
+    "processor": "Intel64 Family 6 Model 151 Stepping 2, GenuineIntel"
+  }
+}

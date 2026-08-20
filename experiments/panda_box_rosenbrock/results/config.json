@@ -1,0 +1,21 @@
+{
+  "experiment": "exp1_panda_box_rosenbrock_small_check",
+  "sizes": [
+    50,
+    100,
+    200,
+    500,
+    1000,
+    2000,
+    5000
+  ],
+  "trials": 4,
+  "backend": "compiled",
+  "finite_difference_epsilon": 0.0001,
+  "git_commit": "unknown",
+  "machine": {
+    "platform": "Windows-10-10.0.26100-SP0",
+    "python": "3.11.7",
+    "processor": "Intel64 Family 6 Model 151 Stepping 2, GenuineIntel"
+  }
+}

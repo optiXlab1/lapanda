@@ -1,0 +1,35 @@
+{
+  "model": "quadrotor",
+  "device": "gpu",
+  "source": "merged from e500 full run plus resume501_to800 continuation",
+  "completed_epochs": 801,
+  "loss_first": 415.93074200621237,
+  "loss_last": 214.96849835819577,
+  "loss_best": 213.91352777912064,
+  "tail50_forward_time_ms": 81.4582118333783,
+  "tail50_backward_time_ms": 5.170598983677337,
+  "tail50_value_grad_time_ms": 81.90165755018825,
+  "tail50_total_sample_time_ms": 81.90165755018825,
+  "avg_constraint_violation_inf": 1.359170290790513e-05,
+  "max_constraint_violation_inf": 0.00017626164022432889,
+  "tail50_sqp_iters_mean": null,
+  "theta_initial": [
+    0.5118216247002567,
+    0.9504636963259353,
+    0.14415961271963373,
+    0.9486494471372439,
+    0.31183145201048545,
+    0.42332644897257565,
+    0.35
+  ],
+  "theta_final": [
+    0.7272212520449947,
+    0.926794486190319,
+    0.1459470209404317,
+    0.9232568626889402,
+    0.0021682003859945778,
+    0.3190525293015603,
+    0.35
+  ],
+  "csv_path": "./experiments\\exp3_OCPs\\quadrotor\\turbompc\\results\\quadrotor_gpu_open_warm_e800_sqp50_admm1000_metrics.csv"
+}

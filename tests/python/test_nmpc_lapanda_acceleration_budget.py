@@ -1,0 +1,183 @@
+import time
+
+import casadi as ca
+import numpy as np
+import pytest
+
+from lapanda import (
+    AlmOptions,
+    BackwardOptions,
+    CasadiProblem,
+    SolverOptions,
+    build_solver,
+)
+
+
+def _ipopt_solver(nlp):
+    try:
+        return ca.nlpsol(
+            "solver",
+            "ipopt",
+            nlp,
+            {
+                "print_time": False,
+                "ipopt.print_level": 0,
+                "ipopt.sb": "yes",
+                "ipopt.tol": 1e-4,
+                "ipopt.max_iter": 2000,
+            },
+        )
+    except RuntimeError as exc:
+        pytest.skip(f"CasADi IPOPT plugin is not available: {exc}")
+
+
+def _build_nmpc_problem(horizon=20):
+    nu = 2
+    n = horizon * nu
+    dt = 0.1
+    wheelbase = 2.5
+
+    u = ca.SX.sym("u", n)
+    theta = ca.SX.sym("theta", 5)
+    variable = ca.SX.sym("variable", 1)
+
+    x = ca.vertcat(0, 0, 0)
+    cost = ca.SX(0)
+    outer_loss = ca.SX(0)
+
+    for k in range(horizon):
+        uk = u[2 * k : 2 * k + 2]
+        cost += (
+            theta[0] * (x[0] - 10) ** 2
+            + theta[1] * (x[1] - 10) ** 2
+            + theta[2] * x[2] ** 2
+            + theta[3] * uk[0] ** 2
+            + theta[4] * uk[1] ** 2
+        )
+        outer_loss += 20 * (uk[0] - 1) ** 2 + 20 * (uk[1] - 1) ** 2
+        x = ca.vertcat(
+            x[0] + dt * uk[0] * ca.cos(x[2]),
+            x[1] + dt * uk[0] * ca.sin(x[2]),
+            x[2] + dt * uk[0] * ca.tan(uk[1]) / wheelbase,
+        )
+
+    lower = np.empty(n)
+    upper = np.empty(n)
+    lower[0::2] = 0.0
+    upper[0::2] = 4.0
+    lower[1::2] = -0.5
+    upper[1::2] = 0.5
+
+    acceleration_budget = ca.sum1(u[0::2])
+    constraints = ca.vertcat(acceleration_budget)
+
+    return u, theta, variable, cost, outer_loss, constraints, lower, upper
+
+
+def _solver_options():
+    options = SolverOptions()
+    options.max_iterations = 1800
+    options.tolerance = 1e-4
+    options.buffer_size = 10
+    options.max_stable_iter = 80
+    return options
+
+
+def _alm_options():
+    options = AlmOptions()
+    options.max_iterations = 50
+    options.tolerance = 1e-4
+    options.initial_penalty = 1.0
+    options.penalty_update_factor = 2.0
+    options.sufficient_decrease_factor = 0.25
+    return options
+
+
+def _backward_options():
+    options = BackwardOptions()
+    options.enable = True
+    options.tolerance = 1e-4
+    options.max_iterations = 800
+    options.constraint_penalty_scale = 100.0
+    options.constraint_penalty_max = 5000.0
+    return options
+
+
+def test_nmpc_lapanda_matches_ipopt_with_control_box_and_acceleration_budget():
+    u, theta, variable, cost, outer_loss, constraints, lower, upper = _build_nmpc_problem()
+    theta_value = np.array([20.0, 20.0, 1.0, 0.1, 0.1])
+    x0 = np.zeros(u.numel())
+    constraint_lower = np.array([0.0])
+    constraint_upper = np.array([70.0])
+
+    problem = CasadiProblem(
+        u=u,
+        theta=theta,
+        variable=variable,
+        cost=cost,
+        box_lower=lower,
+        box_upper=upper,
+        constraints=constraints,
+        outer_loss=outer_loss,
+    )
+    alm_start = time.perf_counter()
+    alm_result = build_solver(problem, backend="callback").solve_lapanda(
+        x0=x0,
+        theta=theta_value,
+        variable=np.zeros(1),
+        constraint_lower=constraint_lower,
+        constraint_upper=constraint_upper,
+        inner_solver_options=_solver_options(),
+        alm_options=_alm_options(),
+        backward_options=_backward_options(),
+    )
+    alm_elapsed = time.perf_counter() - alm_start
+
+    ipopt = _ipopt_solver({"x": u, "p": theta, "f": cost, "g": constraints})
+    ipopt_start = time.perf_counter()
+    ipopt_result = ipopt(
+        x0=x0,
+        p=theta_value,
+        lbx=lower,
+        ubx=upper,
+        lbg=constraint_lower,
+        ubg=constraint_upper,
+    )
+    ipopt_elapsed = time.perf_counter() - ipopt_start
+
+    alm_solution = np.asarray(alm_result["solution"])
+    ipopt_solution = np.array(ipopt_result["x"]).reshape(-1)
+    print(alm_solution)
+    cost_fun = ca.Function("cost_fun", [u, theta], [cost])
+    budget_fun = ca.Function("budget_fun", [u], [constraints])
+
+    alm_cost = float(cost_fun(alm_solution, theta_value))
+    ipopt_cost = float(ipopt_result["f"])
+    alm_budget = np.array(budget_fun(alm_solution)).reshape(-1)
+    ipopt_budget = np.array(budget_fun(ipopt_solution)).reshape(-1)
+
+    print(f"lapanda time: {alm_elapsed:.6f} s")
+    print(f"IPOPT time:     {ipopt_elapsed:.6f} s")
+    print(
+        "ALM summary: "
+        f"outer_iterations={alm_result['iterations']}, "
+        f"final_residual={alm_result['final_residual']:.6e}, "
+        f"penalty={alm_result['penalty']:.6e}, "
+        f"backward_iterations={alm_result['backward_iterations']}, "
+        f"backward_residual={alm_result['backward_residual']:.6e}"
+    )
+
+    np.testing.assert_allclose(alm_solution, ipopt_solution, atol=2e-3)
+    np.testing.assert_allclose(alm_budget, ipopt_budget, atol=2e-3)
+    assert abs(alm_cost - ipopt_cost) < 1e-2
+    assert alm_result["final_residual"] < 1e-3
+
+    grad_theta = np.asarray(alm_result["grad_theta"])
+    print(grad_theta)
+    assert grad_theta.shape == (5,)
+    assert np.all(np.isfinite(grad_theta))
+    np.testing.assert_allclose(
+        grad_theta,
+        np.array([2.1236, -2.6152, 10.4101, 0.0, -5.7747]),
+        atol=8e-2,
+    )

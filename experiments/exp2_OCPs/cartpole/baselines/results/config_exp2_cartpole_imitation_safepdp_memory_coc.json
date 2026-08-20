@@ -1,0 +1,38 @@
+{
+  "model": "cartpole",
+  "horizon": 20,
+  "epochs": 800,
+  "tol": 0.001,
+  "learning_rate": 0.002,
+  "sensitivity_mode": "coc",
+  "barrier_gamma": null,
+  "theta_true": [
+    1.0,
+    18.0,
+    0.05,
+    0.25,
+    0.015
+  ],
+  "theta_initial": [
+    0.5118216247002567,
+    0.9504636963259353,
+    0.14415961271963373,
+    0.9486494471372439,
+    0.31183145201048545
+  ],
+  "theta_init_mode": "uniform01",
+  "seed": 1,
+  "teacher_rollout_samples": 1,
+  "teacher_rollout_source": "./experiments\\exp3_OCPs\\cartpole\\results\\exp3_cartpole_expert32_h20_seed0.mpc_snapshots.npz",
+  "measure_memory": true,
+  "memory_only": true,
+  "problem_build_time_sec": 0.032316199998604134,
+  "solver_build_time_sec": 0.024045700003625825,
+  "build_time_sec": 0.05636190000222996,
+  "problem_build_rss_peak_delta_mb": 1.19140625,
+  "problem_build_rss_tree_peak_delta_mb": 1.19140625,
+  "solver_build_rss_peak_delta_mb": 0.515625,
+  "solver_build_rss_tree_peak_delta_mb": 0.515625,
+  "build_rss_delta_mb": 1.70703125,
+  "build_rss_tree_delta_mb": 1.70703125
+}

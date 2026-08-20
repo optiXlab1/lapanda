@@ -1,0 +1,46 @@
+build*/
+.lapanda_cache/
+dist/
+.venv/
+venv/
+.idea/
+.vscode/
+.pytest_cache/
+*.egg-info/
+__pycache__/
+*.py[cod]
+*.pyd
+*.so
+*.dylib
+*.dll
+*.log
+*.tmp
+*.bak
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.out
+*.synctex.gz
+panda_residual_log.csv
+lapanda_inner_log.csv
+tests/python/*.csv
+tests/python/*_debug.png
+
+# Local third-party checkouts and platform-specific MATLAB binaries.
+external/Safe-PDP/
+matlab/casadi-*/
+
+# Local project handoff and scratch artifacts.
+PROJECT_HANDOFF.md
+_*.txt
+
+# Presentation sources and local generated solver workspaces.
+docs/*.pptx
+experiments/**/results/**/smoke_*/
+experiments/**/results/**/acados_rollout_*/
+experiments/**/results/**/codegen*/
+experiments/**/results/**/*_ocp.json
+experiments/exp2_OCPs/summary_results/_smoke_*/
+exports/**/Makefile

@@ -1,0 +1,13 @@
+{
+  "method": "acados",
+  "problem": "rectangle",
+  "backend": "C interface",
+  "hessian": "GAUSS_NEWTON",
+  "horizon": 20,
+  "dynamics": "discrete bicycle",
+  "tolerance": {
+    "nlp_tol_reference": 0.001
+  },
+  "expected_status": 2,
+  "notes": "Rectangle GN hard-constraint baseline is expected to fail/run to max SQP iterations on the current problem."
+}

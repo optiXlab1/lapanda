@@ -1,0 +1,24 @@
+{
+  "method": "lapanda",
+  "problem": "rectangle",
+  "backend": "exported C",
+  "horizon": 20,
+  "dynamics": "discrete bicycle",
+  "tolerance": {
+    "alm_tolerance": 0.0001,
+    "inner_tolerance": 0.001,
+    "backward_tolerance": 0.001
+  },
+  "notes": "Rectangle hard-constraint margin problem, final tolerance setting used for ROS/Raspberry Pi export."
+  ,
+  "standalone_entry": "rectangle_imitation_benchmark",
+  "training": {
+    "epochs": 150,
+    "learning_rate": 0.001,
+    "teacher_margins": [0.12, 0.12, 0.01, 0.22],
+    "initial_margins": [0.15, 0.15, 0.16, 0.22],
+    "initial_guess": "zero controls (cold start)",
+    "learn_mask": ["left", "right", "bottom"],
+    "line_search_scales": [1.0, 0.5, 0.25, 0.1, 0.05, 0.01]
+  }
+}

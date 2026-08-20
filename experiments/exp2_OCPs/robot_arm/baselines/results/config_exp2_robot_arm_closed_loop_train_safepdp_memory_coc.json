@@ -1,0 +1,39 @@
+{
+  "model": "two_link_arm",
+  "horizon": 20,
+  "epochs": 500,
+  "steps": 1,
+  "tol": 0.001,
+  "learning_rate": 0.001,
+  "sensitivity_mode": "coc",
+  "barrier_gamma": null,
+  "theta_true": [
+    0.8,
+    8.0,
+    0.02,
+    0.02,
+    0.12
+  ],
+  "theta_initial": [
+    0.25,
+    2.0,
+    0.08,
+    0.08,
+    0.04
+  ],
+  "theta_init_mode": "default",
+  "epoch_offset": 0,
+  "seed": 1,
+  "teacher_rollout_source": "./experiments\\exp3_OCPs\\robot_arm\\results\\exp5_robot_arm_mpc_lapanda_teacher.mpc_snapshots.npz",
+  "measure_memory": true,
+  "memory_only": true,
+  "problem_build_time_sec": 0.04170470000826754,
+  "solver_build_time_sec": 0.020181400002911687,
+  "build_time_sec": 0.061886100011179224,
+  "problem_build_rss_peak_delta_mb": 1.32421875,
+  "problem_build_rss_tree_peak_delta_mb": 1.32421875,
+  "solver_build_rss_peak_delta_mb": 0.53515625,
+  "solver_build_rss_tree_peak_delta_mb": 0.53515625,
+  "build_rss_delta_mb": 1.859375,
+  "build_rss_tree_delta_mb": 1.859375
+}

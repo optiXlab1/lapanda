@@ -1,0 +1,30 @@
+{
+  "model": "robot_arm",
+  "device": "cpu",
+  "source": "merged from e500 full run plus resume501_to800 continuation",
+  "completed_epochs": 800,
+  "loss_first": 22.473671033467998,
+  "loss_last": 0.9663289023042021,
+  "loss_best": 0.9663289023042021,
+  "tail50_forward_time_ms": 8.765762068069307,
+  "tail50_backward_time_ms": 2.7206714340718463,
+  "tail50_value_grad_time_ms": 11.367643598496215,
+  "tail50_total_sample_time_ms": 11.367643598496215,
+  "avg_constraint_violation_inf": 0.0008673584531117108,
+  "max_constraint_violation_inf": 0.0036954199480501992,
+  "theta_initial": [
+    0.5118216247002567,
+    0.9504636963259353,
+    0.14415961271963373,
+    0.4,
+    0.06349896734588635
+  ],
+  "theta_final": [
+    0.3786419106097302,
+    1.096109916613237,
+    0.043409580687059114,
+    0.00038146264253218127,
+    0.11849949694113872
+  ],
+  "csv_path": "./experiments\\exp3_OCPs\\robot_arm\\turbompc\\results\\robot_arm_cpu_open_warm_e800_sqp50_admm1000_metrics.csv"
+}

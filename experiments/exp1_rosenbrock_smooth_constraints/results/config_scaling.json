@@ -1,0 +1,30 @@
+{
+  "experiment": "exp1_radius_chain_scaling_casadi_sensitivity",
+  "sizes": [
+    20,
+    50,
+    100,
+    200,
+    500,
+    1000
+  ],
+  "warmup_size": 20,
+  "formal_recording_starts_at": 50,
+  "trials": 10,
+  "constraint_stride": 1,
+  "backend": "compiled",
+  "tol": 0.001,
+  "inner_tol": 0.001,
+  "alm_tol": 0.001,
+  "backward_tol": 0.001,
+  "ipopt_tol": 0.001,
+  "active_tol": 0.001,
+  "git_commit": "unknown",
+  "machine": {
+    "platform": "Windows-10-10.0.26100-SP0",
+    "python": "3.11.7",
+    "processor": "Intel64 Family 6 Model 151 Stepping 2, GenuineIntel"
+  },
+  "casadi_baseline": "IPOPT forward plus CasADi sqpmethod/qpoases solver differentiation backward",
+  "note_safepdp": "SafePDP is not run in Exp.1 because this radius-chain problem is a general non-OCP NLP. SafePDP should be used in the OCP imitation experiments."
+}

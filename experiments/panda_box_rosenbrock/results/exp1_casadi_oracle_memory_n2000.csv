@@ -1,0 +1,13 @@
+step,rss_mb,delta_from_start_mb,note
+start,54.546875,0.0,
+build_problem,58.0625,3.515625,sample_peak_delta=3.45
+"ca.gradient(cost,u)",59.76953125,5.22265625,sample_peak_delta=1.62
+Function cost_grad,60.953125,6.40625,sample_peak_delta=1.21
+ca.jtimes grad,62.3125,7.765625,sample_peak_delta=2.50
+Function hvp,63.4140625,8.8671875,sample_peak_delta=1.12
+"jacobian(grad,theta).T@v",65.0234375,10.4765625,sample_peak_delta=2.13
+Function vjp,65.6875,11.140625,sample_peak_delta=0.68
+gradient outer_loss,66.25390625,11.70703125,sample_peak_delta=0.59
+Function loss_grad,66.703125,12.15625,sample_peak_delta=0.47
+CodeGenerator.generate,67.671875,13.125,sample_peak_delta=8.86; c_size_mb=3.36
+after del + gc.collect,67.67578125,13.12890625,

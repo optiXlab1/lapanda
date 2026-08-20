@@ -1,0 +1,53 @@
+"""Paper/default settings for the embedded obstacle-avoidance experiments.
+
+The generated C projects are treated as the source of truth.  These Python
+constants mirror the values embedded in the exported C examples so the plotting
+and reproduction scripts run the same problem by default.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+
+EXP_DIR = Path(__file__).resolve().parent
+RESULTS_DIR = EXP_DIR / "results"
+
+START_STATE = (-1.2, 0.0, 0.0)
+TARGET_STATE = (1.2, 0.0, 0.0)
+
+INNER_MAX_ITER = 2000
+INNER_MAX_STABLE_ITER = 80
+BACKWARD_MAX_ITER = 200
+BACKWARD_TOL = 1e-3
+ALM_MAX_ITER = 100
+ALM_TOL = 1e-4
+ALM_INITIAL_PENALTY = 10000.0
+ALM_PENALTY_UPDATE_FACTOR = 10.0
+ALM_MAX_PENALTY = 0.0
+
+CIRCLE_HORIZON = 12
+CIRCLE_SPEED_LIMIT = 1.5
+CIRCLE_INNER_TOL = 1e-1
+CIRCLE_THETA = (10.0, 0.2, 1e-2, 1e-2, 30.0, 0.30, 0.20)
+CIRCLE_RADIUS = CIRCLE_THETA[5]
+CIRCLE_CENTER_Y = CIRCLE_THETA[6]
+CIRCLE_PLOT_STEER_LIMIT = 0.7
+CIRCLE_RESULT_DIR = RESULTS_DIR / "circle" / "paper_lapanda"
+CIRCLE_ACADOS_RESULT_DIR = RESULTS_DIR / "circle" / "paper_acados"
+
+RECTANGLE_HORIZON = 20
+RECTANGLE_DT = 0.12
+RECTANGLE_SPEED_LIMIT = 1.0
+RECTANGLE_INNER_TOL = 1e-3
+RECTANGLE_BASE = (-0.35, 0.35, -0.22, 0.22)
+RECTANGLE_THETA_PREFIX = (5.0, 0.2, 1e-2, 1e-2, 20.0)
+RECTANGLE_EXPORT_MARGINS = (0.10, 0.10, 0.10, 0.22)
+RECTANGLE_TEACHER_MARGINS = (0.120, 0.120, 0.010, 0.220)
+RECTANGLE_INITIAL_MARGINS = (0.150, 0.150, 0.160, 0.220)
+RECTANGLE_EPOCHS = 150
+RECTANGLE_LR = 1e-3
+RECTANGLE_LEARN_MASK = "left,right,bottom"
+RECTANGLE_RESULT_DIR = RESULTS_DIR / "rectangle" / "c_export_wider_sides_e150"
+RECTANGLE_C_EXPORT_RESULT_DIR = RESULTS_DIR / "rectangle" / "c_export_wider_sides_e150"
+RECTANGLE_PLOT_STEER_LIMIT = 0.7

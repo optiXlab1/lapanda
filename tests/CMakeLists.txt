@@ -1,0 +1,29 @@
+add_executable(test_linear_solvers
+    test_linear_solvers.c
+)
+target_link_libraries(test_linear_solvers PANDA_lib)
+add_test(NAME test_linear_solvers COMMAND test_linear_solvers)
+
+add_executable(test_quadratic_forward_backward
+    test_quadratic_forward_backward.c
+)
+target_link_libraries(test_quadratic_forward_backward PANDA_lib)
+add_test(NAME test_quadratic_forward_backward COMMAND test_quadratic_forward_backward)
+
+add_executable(test_box_qp_forward_backward
+    test_box_qp_forward_backward.c
+)
+target_link_libraries(test_box_qp_forward_backward PANDA_lib)
+add_test(NAME test_box_qp_forward_backward COMMAND test_box_qp_forward_backward)
+
+add_executable(test_alm_equality_qp
+    test_alm_equality_qp.c
+)
+target_link_libraries(test_alm_equality_qp ALM_lib)
+add_test(NAME test_alm_equality_qp COMMAND test_alm_equality_qp)
+
+add_executable(test_alm_box_constraint_qp
+    test_alm_box_constraint_qp.c
+)
+target_link_libraries(test_alm_box_constraint_qp ALM_lib)
+add_test(NAME test_alm_box_constraint_qp COMMAND test_alm_box_constraint_qp)

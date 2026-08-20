@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>circle_acados_exact_ros1</name>
+  <version>0.1.0</version>
+  <description>acados C interface ROS1 node for circle obstacle MPC benchmark.</description>
+  <maintainer email="user@example.com">lapanda</maintainer>
+  <license>BSD</license>
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>roscpp</build_depend>
+  <build_depend>std_msgs</build_depend>
+  <exec_depend>roscpp</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+</package>

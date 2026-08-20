@@ -1,0 +1,31 @@
+{
+  "model": "robot_arm",
+  "device": "gpu",
+  "source": "merged from e500 full run plus resume501_to800 continuation",
+  "completed_epochs": 801,
+  "loss_first": 22.472820927326616,
+  "loss_last": 0.9366308559106992,
+  "loss_best": 0.9154476276345886,
+  "tail50_forward_time_ms": 40.47742707116413,
+  "tail50_backward_time_ms": 3.39904003762058,
+  "tail50_value_grad_time_ms": 41.312147456919774,
+  "tail50_total_sample_time_ms": 41.312147456919774,
+  "avg_constraint_violation_inf": 0.0012918823351931394,
+  "max_constraint_violation_inf": 0.003925314336996055,
+  "tail50_sqp_iters_mean": null,
+  "theta_initial": [
+    0.5118216247002567,
+    0.9504636963259353,
+    0.14415961271963373,
+    0.4,
+    0.06349896734588635
+  ],
+  "theta_final": [
+    0.3753025653727404,
+    1.097298104167167,
+    0.04242689020109517,
+    0.0013680091743439018,
+    0.11856879001560598
+  ],
+  "csv_path": "./experiments\\exp3_OCPs\\robot_arm\\turbompc\\results\\robot_arm_gpu_open_warm_e800_sqp50_admm1000_metrics.csv"
+}
