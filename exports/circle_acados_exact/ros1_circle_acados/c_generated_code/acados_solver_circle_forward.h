@@ -64,7 +64,7 @@
 #define CIRCLE_FORWARD_NY0    0
 #define CIRCLE_FORWARD_NY     0
 #define CIRCLE_FORWARD_NYN    0
-#define CIRCLE_FORWARD_N      20
+#define CIRCLE_FORWARD_N      12
 #define CIRCLE_FORWARD_NH     1
 #define CIRCLE_FORWARD_NHN    0
 #define CIRCLE_FORWARD_NH0    0

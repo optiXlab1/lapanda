@@ -1,5 +1,5 @@
 #include "static_casadi_oracle.h"
-#include "LAPANDA_generated_config.h"
+#include "lapanda_generated_config.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -7,7 +7,7 @@
 static void fill_problem_data(double* theta, double* variable)
 {
     const double theta_value[LAPANDA_NTHETA] = {
-        5.0, 0.2, 1e-2, 1e-2, 20.0, 0.10, 0.10, 0.10, 0.22
+        5.0, 0.2, 1e-2, 1e-2, 20.0, 0.12, 0.12, 0.01, 0.22
     };
     const double variable_value[LAPANDA_NVAR] = {
         -1.2, 0.0, 0.0, 1.2, 0.0, 0.0,
@@ -66,7 +66,7 @@ int main(void)
     backward_params.tolerance = 1e-3;
     backward_params.max_iterations = 200;
 
-    LAPANDA_static_init_alm_problem(
+    lapanda_static_init_alm_problem(
         &problem,
         constraint_lower,
         constraint_upper,
@@ -74,7 +74,7 @@ int main(void)
         &backward_params);
 
     params.max_iterations = 100;
-    params.tolerance = 1e-4;
+    params.tolerance = 1e-5;
     params.initial_penalty = 10000.0;
     params.penalty_update_factor = 10.0;
     params.max_penalty = 0.0;

@@ -1,4 +1,4 @@
-"""Plot nonlinear Quadrotor horizon scaling for lapanda and TurboMPC-GPU."""
+"""Reproduce the nonlinear horizon-scaling figure from its summary CSV."""
 
 from __future__ import annotations
 
@@ -11,109 +11,77 @@ import numpy as np
 
 
 ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_DATA_DIR = (
-    ROOT
-    / "experiments"
-    / "exp2_OCPs"
-    / "summary_results"
-    / "nonlinear_horizon_scaling_mixed_warm_start"
-    / "raw"
-)
-DEFAULT_OUT_DIR = ROOT / "experiments" / "exp2_OCPs" / "summary_results"
+RESULTS_DIR = ROOT / "experiments" / "exp2_OCPs" / "summary_results"
+DEFAULT_DATA = RESULTS_DIR / "nonlinear_horizon_scaling_lapanda_turbompc_gpu.csv"
+OUTPUT_STEM = "nonlinear_horizon_scaling_lapanda_turbompc_gpu"
 HORIZONS = tuple(range(10, 201, 20))
-MEASURED_REPETITIONS = 30
 
-BLUE = "#0000FF"
-RED = "#FF0000"
-BLUE_FILL = "#CCCCFF"
-RED_FILL = "#FFCCCC"
-GRID = "#B8BDC7"
-LEGEND_FACE = "#F2F3F5"
-LEGEND_EDGE = "#C9CDD6"
+RED = "#D62728"
+PURPLE = "#9467BD"
+GRID = "#C6C6C6"
+PANEL_FACE = "#F3F3F3"
+LEGEND_FACE = "#FFFFFF"
+LEGEND_EDGE = "#D3D6DE"
 
-TICK_FONTSIZE = 9.0
-LABEL_FONTSIZE = 10.0
-LEGEND_FONTSIZE = 10.0
-PANEL_LABEL_FONTSIZE = 9.8
+ICLR_TEXT_WIDTH_IN = 5.5
+TICK_FONTSIZE = 7.0
+LABEL_FONTSIZE = 7.0
+LEGEND_FONTSIZE = 7.0
 
 METHODS = (
-    ("lapanda", "lapanda", BLUE, BLUE_FILL, "o", "-"),
-    ("turbompc_gpu", "TurboMPC-GPU", RED, RED_FILL, "s", "--"),
+    ("lapanda", RED, "o", "-", 1.20),
+    ("TurboMPC-GPU", PURPLE, "s", "--", 1.00),
 )
-TIME_PANELS = (("value_grad_time_ms", "Total time"),)
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data-dir", type=Path, default=DEFAULT_DATA_DIR)
-    parser.add_argument("--outdir", type=Path, default=DEFAULT_OUT_DIR)
+    parser.add_argument("--data", type=Path, default=DEFAULT_DATA)
+    parser.add_argument("--outdir", type=Path, default=RESULTS_DIR)
     return parser.parse_args()
 
 
-def summarize(values: list[float]) -> tuple[float, float, float]:
-    array = np.asarray(values, dtype=float)
-    mean = float(np.mean(array))
-    std = float(np.std(array, ddof=1)) if array.size > 1 else 0.0
-    return mean, max(mean - std, np.finfo(float).tiny), mean + std
+def load_summary(path: Path) -> dict[str, tuple[np.ndarray, np.ndarray]]:
+    with path.open(newline="", encoding="utf-8") as stream:
+        rows = list(csv.DictReader(stream))
 
-
-def metric_path(data_dir: Path, horizon: int, key: str) -> Path:
-    suffix = "lapanda_mixed" if key == "lapanda" else "turbompc_gpu_mixed"
-    return data_dir / f"quadrotor_h{horizon}_{suffix}_metrics.csv"
-
-
-def load_data(data_dir: Path) -> dict[str, dict[str, np.ndarray]]:
-    output: dict[str, dict[str, np.ndarray]] = {}
-    for key, _label, _color, _fill, _marker, _line in METHODS:
-        method_data = {name: [] for name, _panel in TIME_PANELS}
-        method_data.update({f"{name}_lower": [] for name, _panel in TIME_PANELS})
-        method_data.update({f"{name}_upper": [] for name, _panel in TIME_PANELS})
-        method_data["constraint_violation_inf"] = []
-        for horizon in HORIZONS:
-            path = metric_path(data_dir, horizon, key)
-            with path.open(newline="", encoding="utf-8") as stream:
-                rows = list(csv.DictReader(stream))
-            rows = rows[:MEASURED_REPETITIONS]
-            for name, _panel in TIME_PANELS:
-                mean, lower, upper = summarize([float(row[name]) for row in rows])
-                method_data[name].append(mean)
-                method_data[f"{name}_lower"].append(lower)
-                method_data[f"{name}_upper"].append(upper)
-            method_data["constraint_violation_inf"].append(
-                float(np.mean([float(row["constraint_violation_inf"]) for row in rows]))
-            )
-        output[key] = {name: np.asarray(values) for name, values in method_data.items()}
-    return output
-
-
-def save_summary(data: dict[str, dict[str, np.ndarray]], path: Path) -> None:
-    rows = []
-    for index, horizon in enumerate(HORIZONS):
-        for key, label, _color, _fill, _marker, _line in METHODS:
-            rows.append(
-                {
-                    "horizon": horizon,
-                    "method": label,
-                    "total_time_ms": data[key]["value_grad_time_ms"][index],
-                    "total_time_std_ms": (
-                        data[key]["value_grad_time_ms_upper"][index]
-                        - data[key]["value_grad_time_ms"][index]
-                    ),
-                    "constraint_violation_inf": data[key]["constraint_violation_inf"][index],
-                }
-            )
-    with path.open("w", newline="", encoding="utf-8") as stream:
-        writer = csv.DictWriter(stream, fieldnames=list(rows[0]))
-        writer.writeheader()
-        writer.writerows(rows)
+    result = {}
+    for method, _color, _marker, _linestyle, _linewidth in METHODS:
+        selected = {
+            int(row["horizon"]): float(row["total_time_ms"])
+            for row in rows
+            if row["method"] == method and int(row["horizon"]) in HORIZONS
+        }
+        missing = sorted(set(HORIZONS) - set(selected))
+        if missing:
+            raise ValueError(f"{path} is missing {method} horizons: {missing}")
+        result[method] = (
+            np.asarray(HORIZONS, dtype=float),
+            np.asarray([selected[horizon] for horizon in HORIZONS], dtype=float),
+        )
+    return result
 
 
 def style_axis(ax: plt.Axes) -> None:
+    ax.set_facecolor(PANEL_FACE)
     ax.set_yscale("log")
-    ax.grid(True, which="major", color=GRID, alpha=0.45, linewidth=0.55, linestyle="-")
+    ax.grid(True, which="major", color=GRID, alpha=0.42, linewidth=0.45, linestyle="-")
     ax.set_axisbelow(True)
-    ax.tick_params(axis="both", which="major", labelsize=TICK_FONTSIZE, length=2.6, width=0.7, pad=1.5)
-    ax.tick_params(axis="y", which="minor", length=1.8, width=0.55)
+    ax.tick_params(
+        axis="both",
+        which="major",
+        labelsize=TICK_FONTSIZE,
+        top=False,
+        right=False,
+        bottom=True,
+        left=True,
+        direction="out",
+        length=1.8,
+        width=0.60,
+        color="#20232A",
+        pad=1.5,
+    )
+    ax.tick_params(axis="y", which="minor", top=False, right=False, length=1.0, width=0.40, color="#7A7F89")
     for spine in ax.spines.values():
         spine.set_color("#25282D")
         spine.set_linewidth(0.72)
@@ -121,10 +89,8 @@ def style_axis(ax: plt.Axes) -> None:
 
 def main() -> None:
     args = parse_args()
+    data = load_summary(args.data)
     args.outdir.mkdir(parents=True, exist_ok=True)
-    data = load_data(args.data_dir)
-    summary_path = args.outdir / "nonlinear_horizon_scaling_lapanda_turbompc_gpu.csv"
-    save_summary(data, summary_path)
 
     plt.rcParams.update(
         {
@@ -135,51 +101,53 @@ def main() -> None:
             "ps.fonttype": 42,
         }
     )
-    fig, ax = plt.subplots(1, 1, figsize=(7.0, 2.55))
-    x = np.asarray(HORIZONS, dtype=float)
+    fig, ax = plt.subplots(figsize=(ICLR_TEXT_WIDTH_IN, 1.95), dpi=300)
+    for method, color, marker, linestyle, linewidth in METHODS:
+        horizons, total_time = data[method]
+        ax.plot(
+            horizons,
+            total_time,
+            color=color,
+            label=method,
+            linewidth=linewidth,
+            linestyle=linestyle,
+            marker=marker,
+            markersize=3.0,
+            zorder=4,
+        )
 
-    for metric, _panel_label in TIME_PANELS:
-        for key, label, color, fill, marker, linestyle in METHODS:
-            mean = data[key][metric]
-            ax.plot(
-                x,
-                mean,
-                color=color,
-                label=label,
-                linewidth=1.25,
-                linestyle=linestyle,
-                marker=marker,
-                markersize=4.0,
-                zorder=4,
-            )
-        style_axis(ax)
-        ax.set_xticks(range(10, 191, 20))
-        ax.set_xlim(10, 190)
-        ax.set_xlabel("Horizon $N$", fontsize=LABEL_FONTSIZE, labelpad=1.5)
+    style_axis(ax)
+    ax.set_xticks(range(10, 191, 20))
+    ax.set_xlim(10, 190)
+    ax.set_xlabel("Horizon $N$", fontsize=LABEL_FONTSIZE, labelpad=5.0)
     ax.set_ylabel("Total time (ms)", fontsize=LABEL_FONTSIZE, labelpad=1.5)
     handles, labels = ax.get_legend_handles_labels()
-    fig.legend(
+    legend = ax.legend(
         handles,
         labels,
-        loc="upper center",
-        bbox_to_anchor=(0.5, 1.035),
+        loc="upper left",
+        bbox_to_anchor=(0.018, 0.982),
         ncol=2,
         fontsize=LEGEND_FONTSIZE,
         frameon=True,
+        fancybox=True,
         facecolor=LEGEND_FACE,
         edgecolor=LEGEND_EDGE,
         framealpha=0.96,
-        borderpad=0.42,
-        handlelength=1.8,
-        handletextpad=0.5,
-        columnspacing=1.2,
+        borderpad=0.30,
+        handlelength=1.65,
+        handletextpad=0.48,
+        columnspacing=1.00,
     )
-    fig.subplots_adjust(left=0.14, right=0.985, top=0.80, bottom=0.18)
-    stem = args.outdir / "nonlinear_horizon_scaling_lapanda_turbompc_gpu"
+    legend.get_frame().set_linewidth(0.75)
+    legend.get_frame().set_facecolor(LEGEND_FACE)
+    legend.get_frame().set_alpha(0.96)
+    fig.subplots_adjust(left=0.105, right=0.985, top=0.955, bottom=0.305)
+
+    stem = args.outdir / OUTPUT_STEM
     for suffix in ("png", "pdf", "svg"):
-        fig.savefig(stem.with_suffix(f".{suffix}"), dpi=400 if suffix == "png" else None, bbox_inches="tight")
+        fig.savefig(stem.with_suffix(f".{suffix}"), dpi=300 if suffix == "png" else None)
     plt.close(fig)
-    print(f"wrote {summary_path}")
     print(f"wrote {stem}.png/.pdf/.svg")
 
 

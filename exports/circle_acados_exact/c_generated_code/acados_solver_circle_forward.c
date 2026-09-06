@@ -807,16 +807,16 @@ static void circle_forward_acados_create_set_opts(circle_forward_solver_capsule*
 
 
     // set SQP specific options
-    double nlp_solver_tol_stat = 0.002;
+    double nlp_solver_tol_stat = 0.0001;
     ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "tol_stat", &nlp_solver_tol_stat);
 
-    double nlp_solver_tol_eq = 0.002;
+    double nlp_solver_tol_eq = 0.0001;
     ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "tol_eq", &nlp_solver_tol_eq);
 
-    double nlp_solver_tol_ineq = 0.002;
+    double nlp_solver_tol_ineq = 0.0001;
     ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "tol_ineq", &nlp_solver_tol_ineq);
 
-    double nlp_solver_tol_comp = 0.002;
+    double nlp_solver_tol_comp = 0.0001;
     ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "tol_comp", &nlp_solver_tol_comp);
 
     int nlp_solver_max_iter = 1000;

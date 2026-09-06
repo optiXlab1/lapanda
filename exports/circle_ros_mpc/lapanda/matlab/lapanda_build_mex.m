@@ -1,5 +1,5 @@
 function mex_path = lapanda_build_mex(project_dir, mex_name)
-%LAPANDA_BUILD_MEX Build the dynamic MATLAB MEX solver adapter.
+%lapanda_BUILD_MEX Build the dynamic MATLAB MEX solver adapter.
 %
 % The generated oracle is not linked into this MEX. Build it separately with
 % lapanda_build_oracle_library and pass the resulting library path through

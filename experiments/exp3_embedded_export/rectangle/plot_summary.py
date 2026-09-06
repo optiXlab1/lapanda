@@ -49,23 +49,38 @@ STEER_LIMIT = _rect_impl.STEER_LIMIT
 BASE_RECT = np.asarray(exp3_config.RECTANGLE_BASE, dtype=float)
 PLOT_RECT_Y_SHIFT = 0.0
 TRUE_RECT_Y_SHIFT = 0.10
-BLUE = "#0000FF"
-RED = "#FF0000"
-GREEN = "#00FF00"
+BLUE = "#1F77B4"
+RED = "#D62728"
+GREEN = "#2CA02C"
 ORANGE = "#B37A2C"
 GRAY = "#666666"
+BLACK = "#000000"
+PANEL_FACE = "#F3F3F3"
+TARGET_COLOR = BLACK
+TARGET_ALPHA = 0.75
+TARGET_DASH = (0, (0.55, 2.35))
+TARGET_LINEWIDTH = 1.00
 GRID = "#E6E8F0"
 INK = "#1F2430"
-LEGEND_FACE = "#F2F3F5"
-LEGEND_EDGE = "#C9CDD6"
+LEGEND_FACE = "#FFFFFF"
+LEGEND_EDGE = "#D3D6DE"
 LEGEND_FRAME_ALPHA = 0.96
 C_EXPORT_TEACHER_MARGINS = np.asarray(exp3_config.RECTANGLE_TEACHER_MARGINS, dtype=float)
-ICLR_TEXT_WIDTH_IN = 6.75
+ICLR_TEXT_WIDTH_IN = 5.5
 
-TICK_FONTSIZE = 8.0
-LABEL_FONTSIZE = 8.0
-LEGEND_FONTSIZE = 5.2
-PANEL_LABEL_FONTSIZE = 9.8
+TICK_FONTSIZE = 7.0
+LABEL_FONTSIZE = 7.0
+LEGEND_FONTSIZE = 4.8
+PANEL_LABEL_FONTSIZE = 8.0
+
+
+def portable_result_path(path: Path) -> str:
+    """Prefer paths relative to the experiment root in committed metadata."""
+    resolved = path.resolve()
+    try:
+        return resolved.relative_to(EXP_DIR).as_posix()
+    except ValueError:
+        return str(resolved)
 
 
 def rect_bounds(margins):
@@ -77,31 +92,50 @@ def plot_base_rect():
     return BASE_RECT + np.asarray([0.0, 0.0, TRUE_RECT_Y_SHIFT, TRUE_RECT_Y_SHIFT], dtype=float)
 
 
-def draw_rect(ax, bounds, label, color, linestyle="-", linewidth=1.6, zorder=2):
+def draw_rect(ax, bounds, label, color, linestyle="-", linewidth=1.6, zorder=2, alpha=1.0, dash_capstyle=None):
     xmin, xmax, ymin, ymax = bounds
     xs = [xmin, xmax, xmax, xmin, xmin]
     ys = [ymin, ymin, ymax, ymax, ymin]
-    ax.plot(xs, ys, color=color, linestyle=linestyle, linewidth=linewidth, label=label, zorder=zorder)
-
-
-def draw_hatched_rect(ax, bounds, label="rectangle"):
-    from matplotlib.patches import Rectangle
-
-    xmin, xmax, ymin, ymax = bounds
-    patch = Rectangle(
-        (xmin, ymin),
-        xmax - xmin,
-        ymax - ymin,
-        facecolor="none",
-        edgecolor="black",
-        linewidth=1.35,
-        linestyle="-",
-        hatch="////",
+    ax.plot(
+        xs,
+        ys,
+        color=color,
+        linestyle=linestyle,
+        linewidth=linewidth,
         label=label,
+        zorder=zorder,
+        alpha=alpha,
+        dash_capstyle=dash_capstyle,
+    )
+
+
+def draw_base_rect(ax, bounds, label="rectangle"):
+    xmin, xmax, ymin, ymax = bounds
+    ax.fill(
+        [xmin, xmax, xmax, xmin],
+        [ymin, ymin, ymax, ymax],
+        color="#FFFFFF",
+        linewidth=0.0,
+        zorder=7,
+    )
+    draw_rect(
+        ax,
+        bounds,
+        label,
+        GREEN,
+        linestyle="-",
+        linewidth=1.60,
         zorder=8,
     )
-    ax.add_patch(patch)
-    return patch
+    ax.scatter(
+        [0.5 * (xmin + xmax)],
+        [0.5 * (ymin + ymax)],
+        marker="+",
+        color=GREEN,
+        s=25,
+        linewidths=1.80,
+        zorder=9,
+    )
 
 
 def read_training(path: Path):
@@ -193,8 +227,21 @@ def connect_start(traj, case):
 
 
 def style_axis(ax):
+    ax.set_facecolor(PANEL_FACE)
     ax.grid(True, color=GRID, linestyle="-", linewidth=0.42, alpha=0.70)
-    ax.tick_params(axis="both", labelsize=TICK_FONTSIZE, length=2.4, width=0.68, pad=1.3)
+    ax.tick_params(
+        axis="both",
+        labelsize=TICK_FONTSIZE,
+        top=False,
+        right=False,
+        bottom=True,
+        left=True,
+        direction="out",
+        length=2.0,
+        width=0.65,
+        color="#20232A",
+        pad=1.3,
+    )
     ax.xaxis.labelpad = 1.8
     ax.yaxis.labelpad = 1.8
     for spine in ax.spines.values():
@@ -212,8 +259,8 @@ def style_legend(ax, loc="upper right"):
         edgecolor=LEGEND_EDGE,
         borderpad=0.24,
         labelspacing=0.16,
-        handlelength=1.30,
-        handletextpad=0.38,
+        handlelength=2.20,
+        handletextpad=0.42,
         loc=loc,
     )
     legend.get_frame().set_linewidth(0.50)
@@ -260,74 +307,88 @@ def plot_publication_1x3(training_csv: Path, outdir: Path, info: dict, args) -> 
             "ps.fonttype": 42,
         }
     )
-    fig, axes = plt.subplots(1, 4, figsize=(ICLR_TEXT_WIDTH_IN, 1.70), dpi=300)
+    fig, axes = plt.subplots(
+        1,
+        4,
+        figsize=(ICLR_TEXT_WIDTH_IN, 1.50),
+        dpi=300,
+        gridspec_kw={"width_ratios": [0.72, 1.35, 0.98, 0.95]},
+    )
 
     ax = axes[0]
-    ax.plot(epochs, losses, color=BLUE, linewidth=1.15)
+    ax.plot(epochs, losses, color=RED, linewidth=1.20)
     ax.set_xlabel("Epoch", fontsize=LABEL_FONTSIZE)
     ax.set_ylabel("Imitation loss", fontsize=LABEL_FONTSIZE)
     ax.set_xlim(float(epochs.min()), float(epochs.max()))
+    ax.set_xticks([0, 75, 150])
+    ax.set_ylim(0.0, 0.8)
+    ax.set_yticks([0.0, 0.2, 0.4, 0.6, 0.8])
     ax.margins(x=0.0)
     style_axis(ax)
 
     ax = axes[1]
-    teacher_style = "-"
-    initial_style = "-."
-    learned_style = "--"
-    draw_hatched_rect(ax, plot_base_rect(), "_nolegend_")
-    draw_rect(ax, rect_bounds(info["teacher_margins"]), "_nolegend_", GREEN, teacher_style, linewidth=0.86, zorder=6)
-    draw_rect(ax, rect_bounds(info["initial_margins"]), "_nolegend_", RED, initial_style, linewidth=0.82, zorder=8)
-    draw_rect(ax, rect_bounds(info["final_margins"]), "_nolegend_", BLUE, learned_style, linewidth=0.98, zorder=10)
+    teacher_style = TARGET_DASH
+    initial_style = "-"
+    learned_style = "-"
+    draw_base_rect(ax, plot_base_rect(), "_nolegend_")
+    draw_rect(ax, rect_bounds(info["initial_margins"]), "_nolegend_", BLUE, "--", linewidth=0.80, zorder=8)
+    draw_rect(ax, rect_bounds(info["final_margins"]), "_nolegend_", RED, "--", linewidth=0.80, zorder=10)
     ax.plot(
         teacher_traj[:, 0],
         teacher_traj[:, 1],
-        color=GREEN,
+        color=TARGET_COLOR,
         linestyle=teacher_style,
-        linewidth=0.98,
-        marker="^",
-        markersize=1.35,
-        markevery=3,
+        linewidth=TARGET_LINEWIDTH,
+        alpha=TARGET_ALPHA,
         label="target",
-        zorder=8,
+        zorder=13,
+        dash_capstyle="round",
     )
     ax.plot(
         initial_traj[:, 0],
         initial_traj[:, 1],
-        color=RED,
+        color=BLUE,
         linestyle=initial_style,
-        linewidth=0.92,
-        marker="s",
-        markersize=1.28,
-        markevery=3,
+        linewidth=1.00,
         label="initial",
         zorder=10,
     )
     ax.plot(
         final_traj[:, 0],
         final_traj[:, 1],
-        color=BLUE,
+        color=RED,
         linestyle=learned_style,
-        linewidth=1.06,
-        marker="o",
-        markersize=1.28,
-        markevery=3,
+        linewidth=1.20,
         label="learned",
         zorder=12,
     )
     ax.scatter(
-        [teacher_case.variable[0], teacher_case.variable[3]],
-        [teacher_case.variable[1], teacher_case.variable[4]],
-        c=[INK, GREEN],
-        s=9,
-        zorder=5,
+        [teacher_case.variable[0]],
+        [teacher_case.variable[1]],
+        marker="^",
+        facecolor=BLACK,
+        edgecolor=BLACK,
+        s=15,
+        zorder=25,
+    )
+    ax.scatter(
+        [teacher_case.variable[3]],
+        [teacher_case.variable[4]],
+        marker="*",
+        facecolor=BLACK,
+        edgecolor=BLACK,
+        s=26,
+        zorder=25,
     )
     ax.set_aspect("auto")
     ax.set_xlabel("$p_x$", fontsize=LABEL_FONTSIZE)
     ax.set_ylabel("$p_y$", fontsize=LABEL_FONTSIZE)
     style_legend(ax, loc="upper right")
     style_axis(ax)
-    ymax = max(np.max(teacher_traj[:, 1]), np.max(initial_traj[:, 1]), np.max(final_traj[:, 1]), 0.55)
-    ax.set_ylim(-0.50, ymax + 0.30)
+    ax.set_xlim(-1.40, 1.40)
+    ax.set_ylim(-0.50, 1.00)
+    ax.set_xticks([-1.4, -0.7, 0.0, 0.7, 1.4])
+    ax.set_yticks([-0.5, 0.0, 0.5, 1.0])
 
     ax = axes[2]
     teacher_margin_offsets = np.asarray([-0.002, 0.002, 0.0, 0.0], dtype=float)
@@ -337,7 +398,7 @@ def plot_publication_1x3(training_csv: Path, outdir: Path, info: dict, args) -> 
             epochs,
             margins[:, index],
             color=color,
-            linewidth=0.96,
+            linewidth=1.00,
             alpha=0.94,
             label=name,
             zorder=3,
@@ -346,14 +407,15 @@ def plot_publication_1x3(training_csv: Path, outdir: Path, info: dict, args) -> 
             teacher_margins[index] + teacher_margin_offsets[index],
             color=color,
             linestyle=(0, (3.5, 2.0)),
-            linewidth=0.86,
+            linewidth=1.00,
             alpha=0.58,
             zorder=12,
         )
     ax.set_xlabel("Epoch", fontsize=LABEL_FONTSIZE)
     ax.set_ylabel("Margin", fontsize=LABEL_FONTSIZE)
     ax.set_xlim(float(epochs.min()), float(epochs.max()))
-    ax.set_ylim(0.0, 0.225)
+    ax.set_ylim(-0.05, 0.25)
+    ax.set_yticks([-0.05, 0.05, 0.15, 0.25])
     ax.margins(x=0.0)
     style_legend(ax, loc="upper right")
     style_axis(ax)
@@ -363,41 +425,43 @@ def plot_publication_1x3(training_csv: Path, outdir: Path, info: dict, args) -> 
     ax.plot(
         stages,
         teacher_u[1::2],
-        color=GREEN,
+        color=TARGET_COLOR,
         linestyle=teacher_style,
-        linewidth=0.98,
+        linewidth=TARGET_LINEWIDTH,
+        alpha=TARGET_ALPHA,
         label="target",
-        zorder=8,
+        zorder=13,
+        dash_capstyle="round",
     )
     ax.plot(
         stages,
         initial_u[1::2],
-        color=RED,
+        color=BLUE,
         linestyle=initial_style,
-        linewidth=0.92,
+        linewidth=1.00,
         label="initial",
         zorder=10,
     )
     ax.plot(
         stages,
         final_u[1::2],
-        color=BLUE,
+        color=RED,
         linestyle=learned_style,
-        linewidth=1.04,
+        linewidth=1.20,
         label="learned",
         zorder=12,
     )
     ax.set_xlabel("Stage", fontsize=LABEL_FONTSIZE)
     ax.set_ylabel("Steer", fontsize=LABEL_FONTSIZE)
-    ax.set_xlim(float(stages.min()), float(stages.max()))
-    ax.set_xticks([5, 10, 15])
-    steer_values = np.concatenate([teacher_u[1::2], initial_u[1::2], final_u[1::2]])
-    ax.set_ylim(float(np.min(steer_values)) - 0.08, float(np.max(steer_values)) + 0.50)
+    ax.set_xlim(0.0, 20.0)
+    ax.set_xticks([0, 5, 10, 15, 20])
+    ax.set_ylim(-0.80, 1.60)
+    ax.set_yticks([-0.8, 0.0, 0.8, 1.6])
     ax.margins(x=0.0)
     style_legend(ax, loc="upper right")
     style_axis(ax)
 
-    fig.subplots_adjust(left=0.066, right=0.996, top=0.900, bottom=0.350, wspace=0.42)
+    fig.subplots_adjust(left=0.066, right=0.985, top=0.900, bottom=0.350, wspace=0.45)
     panel_labels = ["(a) Loss", "(b) Trajectory", "(c) Margins", "(d) Steer"]
     for label, ax in zip(panel_labels, axes):
         ax.text(
@@ -434,7 +498,7 @@ def main():
     p.add_argument("--inner-max-stable-iter", type=int, default=exp3_config.INNER_MAX_STABLE_ITER)
     p.add_argument("--inner-tol", type=float, default=exp3_config.RECTANGLE_INNER_TOL)
     p.add_argument("--alm-max-iter", type=int, default=200)
-    p.add_argument("--alm-tol", type=float, default=1e-6)
+    p.add_argument("--alm-tol", type=float, default=exp3_config.RECTANGLE_FIGURE_ALM_TOL)
     p.add_argument("--alm-initial-penalty", type=float, default=exp3_config.ALM_INITIAL_PENALTY)
     p.add_argument("--alm-penalty-update-factor", type=float, default=exp3_config.ALM_PENALTY_UPDATE_FACTOR)
     p.add_argument("--backward-max-iter", type=int, default=exp3_config.BACKWARD_MAX_ITER)
@@ -497,16 +561,16 @@ def main():
     with summary_path.open("w", encoding="utf-8") as f:
         json.dump(
             {
-                "training_csv": str(training_csv),
+                "training_csv": portable_result_path(training_csv),
                 "initial_loss": info["initial_loss"],
                 "final_loss": info["final_loss"],
                 "final_loss_recomputed": final_loss_recomputed,
                 "teacher_margins": info["teacher_margins"].tolist(),
                 "initial_margins": info["initial_margins"].tolist(),
                 "final_margins": info["final_margins"].tolist(),
-                "loss_margins_plot": str(training_plot),
-                "publication_plot": str(publication_plot),
-                "trajectory_plot": str(fig_path),
+                "loss_margins_plot": portable_result_path(training_plot),
+                "publication_plot": portable_result_path(publication_plot),
+                "trajectory_plot": portable_result_path(fig_path),
             },
             f,
             indent=2,

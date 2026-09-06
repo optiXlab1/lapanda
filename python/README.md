@@ -22,8 +22,7 @@ The public package is `lapanda`. Examples can be run with:
 
 ```powershell
 $env:PYTHONPATH = "$PWD\python"
-python examples\python\box_qp.py
-python examples\python\alm_equality_qp.py
+jupyter notebook tutorials\python_learning.ipynb
 ```
 
 ## Interface shape

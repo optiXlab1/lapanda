@@ -1,9 +1,0 @@
-{
-  "solver": "lapanda",
-  "mode": "smooth",
-  "tau": 0.08,
-  "guess_source": null,
-  "forward_hessian": null,
-  "success": false,
-  "exception": "RuntimeError('alm_solve backward failed')"
-}

@@ -1,5 +1,5 @@
 function result = lapanda_solve_alm(solver, x0, theta, variable, lower, upper, options)
-%LAPANDA_SOLVE_ALM Solve a constrained problem with ALM+PANDA.
+%lapanda_SOLVE_ALM Solve a constrained problem with ALM+PANDA.
 %
 % Optional warm starts can be passed through options:
 %   options.alm_multiplier0 = previous_multipliers;

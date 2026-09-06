@@ -13,6 +13,10 @@ __pycache__/
 *.so
 *.dylib
 *.dll
+*.o
+*.obj
+*.a
+*.lib
 *.log
 *.tmp
 *.bak

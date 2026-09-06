@@ -1,5 +1,5 @@
 function out_dir = lapanda_codegen_matlab(problem, out_dir, name, force)
-%LAPANDA_CODEGEN_MATLAB Generate CasADi C oracle files for lapanda.
+%lapanda_CODEGEN_MATLAB Generate CasADi C oracle files for lapanda.
 %
 % Required fields:
 %   problem.u       CasADi decision variable
@@ -235,18 +235,18 @@ if fid < 0
 end
 cleanup = onCleanup(@() fclose(fid));
 
-fprintf(fid, '#ifndef LAPANDA_GENERATED_CONFIG_H\n');
-fprintf(fid, '#define LAPANDA_GENERATED_CONFIG_H\n\n');
+fprintf(fid, '#ifndef lapanda_GENERATED_CONFIG_H\n');
+fprintf(fid, '#define lapanda_GENERATED_CONFIG_H\n\n');
 fprintf(fid, '#include "%s.h"\n\n', name);
-fprintf(fid, '#define LAPANDA_N %d\n', n);
-fprintf(fid, '#define LAPANDA_NTHETA %d\n', ntheta);
-fprintf(fid, '#define LAPANDA_NVAR %d\n', nvar);
-fprintf(fid, '#define LAPANDA_NCON %d\n', ncon);
-fprintf(fid, '#define LAPANDA_HAS_BOX_LOWER %d\n', ~isempty(box_lower));
-fprintf(fid, '#define LAPANDA_HAS_BOX_UPPER %d\n', ~isempty(box_upper));
-fprintf(fid, '#define LAPANDA_HAS_OUTER_LOSS %d\n\n', has_outer_loss);
-fprintf(fid, 'static const double LAPANDA_BOX_LOWER[LAPANDA_N] = %s;\n', local_c_array(box_lower));
-fprintf(fid, 'static const double LAPANDA_BOX_UPPER[LAPANDA_N] = %s;\n\n', local_c_array(box_upper));
+fprintf(fid, '#define lapanda_N %d\n', n);
+fprintf(fid, '#define lapanda_NTHETA %d\n', ntheta);
+fprintf(fid, '#define lapanda_NVAR %d\n', nvar);
+fprintf(fid, '#define lapanda_NCON %d\n', ncon);
+fprintf(fid, '#define lapanda_HAS_BOX_LOWER %d\n', ~isempty(box_lower));
+fprintf(fid, '#define lapanda_HAS_BOX_UPPER %d\n', ~isempty(box_upper));
+fprintf(fid, '#define lapanda_HAS_OUTER_LOSS %d\n\n', has_outer_loss);
+fprintf(fid, 'static const double lapanda_BOX_LOWER[lapanda_N] = %s;\n', local_c_array(box_lower));
+fprintf(fid, 'static const double lapanda_BOX_UPPER[lapanda_N] = %s;\n\n', local_c_array(box_upper));
 fprintf(fid, '#endif\n');
 end
 

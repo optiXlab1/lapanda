@@ -8,30 +8,30 @@ find_package(catkin REQUIRED COMPONENTS
 
 catkin_package()
 
-set(LAPANDA_EXPORT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/..)
-set(LAPANDA_ROOT ${LAPANDA_EXPORT_DIR}/lapanda)
+set(lapanda_EXPORT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/..)
+set(lapanda_ROOT ${lapanda_EXPORT_DIR}/lapanda)
 
 add_library(lapanda_rectangle STATIC
-    ${LAPANDA_EXPORT_DIR}/generated/rectangle_mpc_oracle.c
-    ${LAPANDA_ROOT}/adapters/casadi_static/static_casadi_oracle.c
-    ${LAPANDA_ROOT}/panda/function_evaluator.c
-    ${LAPANDA_ROOT}/panda/matrix_operations.c
-    ${LAPANDA_ROOT}/panda/lbfgs.c
-    ${LAPANDA_ROOT}/panda/panda_eval.c
-    ${LAPANDA_ROOT}/panda/panda_forward.c
-    ${LAPANDA_ROOT}/panda/panda_linear_solver.c
-    ${LAPANDA_ROOT}/panda/panda_backward.c
-    ${LAPANDA_ROOT}/panda/optimizer.c
-    ${LAPANDA_ROOT}/alm/alm.c
+    ${lapanda_EXPORT_DIR}/generated/rectangle_mpc_oracle.c
+    ${lapanda_ROOT}/adapters/casadi_static/static_casadi_oracle.c
+    ${lapanda_ROOT}/panda/function_evaluator.c
+    ${lapanda_ROOT}/panda/matrix_operations.c
+    ${lapanda_ROOT}/panda/lbfgs.c
+    ${lapanda_ROOT}/panda/panda_eval.c
+    ${lapanda_ROOT}/panda/panda_forward.c
+    ${lapanda_ROOT}/panda/panda_linear_solver.c
+    ${lapanda_ROOT}/panda/panda_backward.c
+    ${lapanda_ROOT}/panda/optimizer.c
+    ${lapanda_ROOT}/alm/alm.c
 )
 
 target_include_directories(lapanda_rectangle PUBLIC
-    ${LAPANDA_EXPORT_DIR}/generated
-    ${LAPANDA_ROOT}/adapters/casadi_static
-    ${LAPANDA_ROOT}/include
-    ${LAPANDA_ROOT}/panda
-    ${LAPANDA_ROOT}/alm
-    ${LAPANDA_ROOT}/globals
+    ${lapanda_EXPORT_DIR}/generated
+    ${lapanda_ROOT}/adapters/casadi_static
+    ${lapanda_ROOT}/include
+    ${lapanda_ROOT}/panda
+    ${lapanda_ROOT}/alm
+    ${lapanda_ROOT}/globals
 )
 
 if(UNIX)

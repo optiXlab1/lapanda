@@ -51,8 +51,8 @@ Python wrapper timing.  The script defaults are:
 - Rectangle lapanda C export / paper figure: `150` epochs, initial margins
   `(0.15, 0.15, 0.16, 0.22)`, teacher margins
   `(0.12, 0.12, 0.01, 0.22)`, PANDA/ALM max iterations `2000/100`,
-  tolerances `1e-3/1e-4`
-- Rectangle acados: same rectangle protocol, SQP/HPIPM with tolerance `1e-4`
+  tolerances `1e-3/1e-5`
+- Rectangle acados: same rectangle protocol, SQP/HPIPM with tolerance `1e-5`
 
 Useful direct commands:
 
@@ -61,4 +61,7 @@ python experiments\exp3_embedded_export\circle\run_lapanda.py --compute-backward
 python experiments\exp3_embedded_export\circle\acados.py
 python experiments\exp3_embedded_export\rectangle\run_lapanda.py
 python experiments\exp3_embedded_export\rectangle\acados.py --backend acados
+python experiments\exp3_embedded_export\rectangle\run_smoothed_mpcc_lapanda_rollout.py
+python experiments\exp3_embedded_export\rectangle\run_smoothed_mpcc_acados_rollout.py
+python experiments\exp3_embedded_export\rectangle\plot_smoothed_mpcc_appendix.py
 ```

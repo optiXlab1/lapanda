@@ -45,7 +45,7 @@ _circle_impl = importlib.util.module_from_spec(_circle_spec)
 sys.modules[_circle_spec.name] = _circle_impl
 _circle_spec.loader.exec_module(_circle_impl)
 
-STEER_LIMIT = _circle_impl.STEER_LIMIT
+STEER_LIMIT = exp3_config.RECTANGLE_STEER_LIMIT
 WHEELBASE = _circle_impl.WHEELBASE
 ObstacleCase = _circle_impl.ObstacleCase
 angle_error = _circle_impl.angle_error
@@ -190,7 +190,15 @@ def build_rectangle_imitation_case(
         variable=variable_value,
         lower=np.zeros(horizon),
         upper=np.zeros(horizon),
-        x0=bicycle_initial_guess(start, target, horizon, dt, y_amp=0.8),
+        x0=bicycle_initial_guess(
+            start,
+            target,
+            horizon,
+            dt,
+            y_amp=0.8,
+            speed_limit=exp3_config.RECTANGLE_SPEED_LIMIT,
+            steer_limit=steer_limit,
+        ),
         meta={
             "rectangle": [
                 base_left - theta_value[5],
@@ -461,8 +469,8 @@ def build_acados_ocp(case, name: str, outdir: Path, sensitivity: bool, args):
         ocp.cost.yref = np.zeros(5)
         ocp.cost.yref_e = np.zeros(3)
     ocp.constraints.x0 = case.variable[:3]
-    ocp.constraints.lbu = np.array([-1.0, -STEER_LIMIT])
-    ocp.constraints.ubu = np.array([1.0, STEER_LIMIT])
+    ocp.constraints.lbu = np.array([-exp3_config.RECTANGLE_SPEED_LIMIT, -args.steer_limit])
+    ocp.constraints.ubu = np.array([exp3_config.RECTANGLE_SPEED_LIMIT, args.steer_limit])
     ocp.constraints.idxbu = np.array([0, 1])
     ocp.constraints.lh = np.array([0.0])
     ocp.constraints.uh = np.array([0.0])
@@ -605,7 +613,7 @@ def parse_args():
     p.add_argument("--inner-max-stable-iter", type=int, default=exp3_config.INNER_MAX_STABLE_ITER)
     p.add_argument("--inner-tol", type=float, default=exp3_config.RECTANGLE_INNER_TOL)
     p.add_argument("--alm-max-iter", type=int, default=exp3_config.ALM_MAX_ITER)
-    p.add_argument("--alm-tol", type=float, default=exp3_config.ALM_TOL)
+    p.add_argument("--alm-tol", type=float, default=exp3_config.RECTANGLE_ALM_TOL)
     p.add_argument("--alm-initial-penalty", type=float, default=exp3_config.ALM_INITIAL_PENALTY)
     p.add_argument("--alm-penalty-update-factor", type=float, default=exp3_config.ALM_PENALTY_UPDATE_FACTOR)
     p.add_argument("--backward-max-iter", type=int, default=exp3_config.BACKWARD_MAX_ITER)
@@ -616,7 +624,7 @@ def parse_args():
     p.add_argument("--acados-forward-mode", choices=["gn", "exact"], default="gn")
     p.add_argument("--acados-max-iter", type=int, default=1000)
     p.add_argument("--acados-regularize", default="MIRROR")
-    p.add_argument("--acados-tol", type=float, default=1e-4)
+    p.add_argument("--acados-tol", type=float, default=exp3_config.RECTANGLE_ACADOS_TOL)
     p.add_argument("--constraint-power", type=int, default=2)
     p.add_argument("--keep-acados-code", action="store_true")
     args = p.parse_args()
@@ -628,6 +636,29 @@ def main():
     args = parse_args()
     outdir = Path(args.outdir)
     outdir.mkdir(parents=True, exist_ok=True)
+    with (outdir / "experiment_meta.json").open("w", encoding="utf-8") as f:
+        json.dump(
+            {
+                "task": "rectangular-obstacle imitation learning",
+                "horizon": exp3_config.RECTANGLE_HORIZON,
+                "dt": exp3_config.RECTANGLE_DT,
+                "speed_bounds": [
+                    -exp3_config.RECTANGLE_SPEED_LIMIT,
+                    exp3_config.RECTANGLE_SPEED_LIMIT,
+                ],
+                "steering_bounds_rad": [-args.steer_limit, args.steer_limit],
+                "inner_tolerance": args.inner_tol,
+                "alm_tolerance": args.alm_tol,
+                "acados_tolerance": args.acados_tol,
+                "epochs": args.epochs,
+                "learning_rate": args.lr,
+                "teacher_margins": args.teacher_margins.tolist(),
+                "initial_margins": args.initial_margins.tolist(),
+                "learn_mask": args.learn_mask.tolist(),
+            },
+            f,
+            indent=2,
+        )
     teacher_case = build_rectangle_imitation_case(args.teacher_margins, steer_limit=args.steer_limit)
     alm_solver, teacher_build_time, teacher_build_rss_delta = build_alm_solver(args)
     teacher_result = solve_alm_once(alm_solver, teacher_case, teacher_case.x0.copy(), False, args)

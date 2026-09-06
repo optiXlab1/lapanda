@@ -1,0 +1,13 @@
+{
+  "generator": "experiments/exp3_embedded_export/export_acados_bundles.py",
+  "root_files": [
+    "ROS_RPI_BUNDLE_README.md",
+    "run_ros_c_bundle_standalone.sh"
+  ],
+  "bundles": [
+    "circle_ros_mpc",
+    "circle_acados_exact",
+    "rectangle_ros_mpc",
+    "rectangle_acados_gn"
+  ]
+}

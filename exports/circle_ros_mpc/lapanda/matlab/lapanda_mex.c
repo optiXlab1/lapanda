@@ -79,7 +79,7 @@ static void* load_symbol(void* library, const char* name, int required)
     ptr = dlsym(library, name);
 #endif
     if (ptr == 0 && required) {
-        mexErrMsgIdAndTxt("LAPANDA:oracle", "Generated oracle is missing symbol: %s.", name);
+        mexErrMsgIdAndTxt("lapanda:oracle", "Generated oracle is missing symbol: %s.", name);
     }
     return ptr;
 }
@@ -99,7 +99,7 @@ static void load_function(void* library, casadi_function* fun, const char* name,
     if (fun->eval == 0) return;
 
     if (strlen(name) + 6 >= sizeof(work_name)) {
-        mexErrMsgIdAndTxt("LAPANDA:oracle", "CasADi function name is too long.");
+        mexErrMsgIdAndTxt("lapanda:oracle", "CasADi function name is too long.");
     }
     strcpy(work_name, name);
     strcat(work_name, "_work");
@@ -111,7 +111,7 @@ static void load_function(void* library, casadi_function* fun, const char* name,
     sz_iw = 0;
     sz_w = 0;
     if (work_fun(&sz_arg, &sz_res, &sz_iw, &sz_w) != 0) {
-        mexErrMsgIdAndTxt("LAPANDA:oracle", "Failed to query CasADi work sizes for %s.", name);
+        mexErrMsgIdAndTxt("lapanda:oracle", "Failed to query CasADi work sizes for %s.", name);
     }
     if (sz_iw > 0) fun->iw = (casadi_int*)mxCalloc((mwSize)sz_iw, sizeof(casadi_int));
     if (sz_w > 0) fun->w = (double*)mxCalloc((mwSize)sz_w, sizeof(double));
@@ -145,7 +145,7 @@ static double get_required_scalar(const mxArray* s, const char* name)
 {
     const mxArray* field = mxGetField(s, 0, name);
     if (field == 0 || mxIsEmpty(field)) {
-        mexErrMsgIdAndTxt("LAPANDA:meta", "meta.%s is required.", name);
+        mexErrMsgIdAndTxt("lapanda:meta", "meta.%s is required.", name);
     }
     return mxGetScalar(field);
 }
@@ -155,11 +155,11 @@ static char* get_required_string(const mxArray* s, const char* name)
     char* out;
     const mxArray* field = mxGetField(s, 0, name);
     if (field == 0 || !mxIsChar(field)) {
-        mexErrMsgIdAndTxt("LAPANDA:meta", "meta.%s must be a string.", name);
+        mexErrMsgIdAndTxt("lapanda:meta", "meta.%s must be a string.", name);
     }
     out = mxArrayToString(field);
     if (out == 0) {
-        mexErrMsgIdAndTxt("LAPANDA:meta", "Failed to read meta.%s.", name);
+        mexErrMsgIdAndTxt("lapanda:meta", "Failed to read meta.%s.", name);
     }
     return out;
 }
@@ -167,7 +167,7 @@ static char* get_required_string(const mxArray* s, const char* name)
 static void check_vector(const mxArray* value, mwSize expected, const char* name)
 {
     if (!mxIsDouble(value) || mxIsComplex(value) || mxGetNumberOfElements(value) != expected) {
-        mexErrMsgIdAndTxt("LAPANDA:badInput", "%s has an unexpected size.", name);
+        mexErrMsgIdAndTxt("lapanda:badInput", "%s has an unexpected size.", name);
     }
 }
 
@@ -650,7 +650,7 @@ static void load_context(dynamic_context* ctx, const mxArray* meta, int need_con
     ctx->library = open_library(library_path);
     mxFree(library_path);
     if (ctx->library == 0) {
-        mexErrMsgIdAndTxt("LAPANDA:oracle", "Failed to load generated oracle library.");
+        mexErrMsgIdAndTxt("lapanda:oracle", "Failed to load generated oracle library.");
     }
 
     load_function(ctx->library, &ctx->cost_grad, "panda_cost_grad", 1);
@@ -705,14 +705,14 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[])
 
     if (nrhs < 5 || !mxIsChar(prhs[0]) || !mxIsStruct(prhs[1])) {
         mexErrMsgIdAndTxt(
-            "LAPANDA:usage",
+            "lapanda:usage",
             "Usage: result = LAPANDA_mex('panda'|'alm', meta, x0, theta, variable, ...)");
     }
     if (nlhs > 1) {
-        mexErrMsgIdAndTxt("LAPANDA:usage", "This MEX function returns one result struct.");
+        mexErrMsgIdAndTxt("lapanda:usage", "This MEX function returns one result struct.");
     }
     if (mxGetString(prhs[0], mode, sizeof(mode)) != 0) {
-        mexErrMsgIdAndTxt("LAPANDA:badInput", "Mode string is too long.");
+        mexErrMsgIdAndTxt("lapanda:badInput", "Mode string is too long.");
     }
 
     meta = prhs[1];
@@ -725,7 +725,7 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[])
     } else if (strcmp(mode, "alm") == 0) {
         if (nrhs >= 8) options = prhs[7];
     } else {
-        mexErrMsgIdAndTxt("LAPANDA:badInput", "Mode must be 'panda' or 'alm'.");
+        mexErrMsgIdAndTxt("lapanda:badInput", "Mode must be 'panda' or 'alm'.");
     }
     fill_backward_params(&backward_params, options);
 
@@ -760,14 +760,14 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[])
         problem.trace_context = 0;
         if (optimizer_init(&problem) == FAILURE) {
             free_context(&ctx);
-            mexErrMsgIdAndTxt("LAPANDA:solver", "optimizer_init failed.");
+            mexErrMsgIdAndTxt("lapanda:solver", "optimizer_init failed.");
         }
         status = solve_problem(solution, theta, variable);
         (void)optimizer_get_forward_info(&forward_info);
         if (status == FAILURE && forward_info.iterations == 0) {
             optimizer_cleanup();
             free_context(&ctx);
-            mexErrMsgIdAndTxt("LAPANDA:solver", "solve_problem failed.");
+            mexErrMsgIdAndTxt("lapanda:solver", "solve_problem failed.");
         }
         backward_info.iterations = 0;
         backward_info.final_residual = 0.0;
@@ -775,7 +775,7 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[])
             if (solve_backward(solution, grad_theta) == FAILURE) {
                 optimizer_cleanup();
                 free_context(&ctx);
-                mexErrMsgIdAndTxt("LAPANDA:solver", "solve_backward failed.");
+                mexErrMsgIdAndTxt("lapanda:solver", "solve_backward failed.");
             }
             (void)optimizer_get_backward_info(&backward_info);
         }
@@ -797,12 +797,12 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[])
 
         if (ctx.ncon == 0) {
             free_context(&ctx);
-            mexErrMsgIdAndTxt("LAPANDA:usage", "This oracle has no ALM constraints.");
+            mexErrMsgIdAndTxt("lapanda:usage", "This oracle has no ALM constraints.");
         }
         if (nrhs < 7) {
             free_context(&ctx);
             mexErrMsgIdAndTxt(
-                "LAPANDA:usage",
+                "lapanda:usage",
                 "ALM usage: result = LAPANDA_mex('alm', meta, x0, theta, variable, lower, upper, options)");
         }
         check_vector(prhs[5], ctx.ncon, "constraint_lower");
@@ -841,7 +841,7 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[])
         if (status < 0 || (status == FAILURE && info.iterations == 0)) {
             mxFree(multipliers);
             free_context(&ctx);
-            mexErrMsgIdAndTxt("LAPANDA:solver", "alm_solve failed.");
+            mexErrMsgIdAndTxt("lapanda:solver", "alm_solve failed.");
         }
         plhs[0] = make_output(
             solution, grad_theta, multipliers, backward_params.enable, ctx.ncon,

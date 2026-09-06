@@ -32,8 +32,13 @@ circle_dir = EXP_DIR / "circle"
 if str(circle_dir) not in sys.path:
     sys.path.insert(0, str(circle_dir))
 
-from lapanda import AlmOptions, BackwardOptions, CasadiProblem, SolverOptions, build_solver
-from lapanda._lapanda import solve_lapanda_compiled
+try:
+    from lapanda import AlmOptions, BackwardOptions, CasadiProblem, SolverOptions, build_solver
+    from lapanda._lapanda import solve_lapanda_compiled
+except ImportError:
+    # Standalone acados code generation only uses the symbolic problem builders.
+    AlmOptions = BackwardOptions = CasadiProblem = SolverOptions = build_solver = None
+    solve_lapanda_compiled = None
 import config as exp3_config
 
 _circle_spec = importlib.util.spec_from_file_location(
@@ -44,8 +49,10 @@ if _circle_spec is None or _circle_spec.loader is None:
 _circle_impl = importlib.util.module_from_spec(_circle_spec)
 sys.modules[_circle_spec.name] = _circle_impl
 _circle_spec.loader.exec_module(_circle_impl)
+if CasadiProblem is None:
+    CasadiProblem = _circle_impl.CasadiProblem
 
-STEER_LIMIT = _circle_impl.STEER_LIMIT
+STEER_LIMIT = exp3_config.RECTANGLE_STEER_LIMIT
 WHEELBASE = _circle_impl.WHEELBASE
 ObstacleCase = _circle_impl.ObstacleCase
 angle_error = _circle_impl.angle_error
@@ -200,7 +207,15 @@ def build_rectangle_imitation_case(
         variable=variable_value,
         lower=np.zeros(horizon),
         upper=np.zeros(horizon),
-        x0=bicycle_initial_guess(start, target, horizon, dt, y_amp=0.8),
+        x0=bicycle_initial_guess(
+            start,
+            target,
+            horizon,
+            dt,
+            y_amp=0.8,
+            speed_limit=speed_limit,
+            steer_limit=steer_limit,
+        ),
         meta={"rectangle": [-0.35 - theta_value[5], 0.35 + theta_value[6], -0.22 - theta_value[7], 0.22 + theta_value[8]]},
     )
 
@@ -631,7 +646,7 @@ def parse_args():
     p.add_argument("--inner-max-stable-iter", type=int, default=80)
     p.add_argument("--inner-tol", type=float, default=1e-3)
     p.add_argument("--alm-max-iter", type=int, default=100)
-    p.add_argument("--alm-tol", type=float, default=1e-4)
+    p.add_argument("--alm-tol", type=float, default=exp3_config.RECTANGLE_ALM_TOL)
     p.add_argument("--alm-initial-penalty", type=float, default=10000.0)
     p.add_argument("--alm-penalty-update-factor", type=float, default=10.0)
     p.add_argument("--backward-max-iter", type=int, default=200)
@@ -641,11 +656,11 @@ def parse_args():
     p.add_argument("--acados-forward-mode", choices=["gn", "exact"], default="gn")
     p.add_argument("--acados-max-iter", type=int, default=1000)
     p.add_argument("--acados-regularize", default="MIRROR")
-    p.add_argument("--acados-tol", type=float, default=1e-4)
+    p.add_argument("--acados-tol", type=float, default=exp3_config.RECTANGLE_ACADOS_TOL)
     p.add_argument("--constraint-power", type=int, default=2)
     p.add_argument("--keep-acados-code", action="store_true")
-    p.add_argument("--horizon", type=int, default=20)
-    p.add_argument("--speed-limit", type=float, default=1.0)
+    p.add_argument("--horizon", type=int, default=exp3_config.RECTANGLE_HORIZON)
+    p.add_argument("--speed-limit", type=float, default=exp3_config.RECTANGLE_SPEED_LIMIT)
     p.add_argument("--steer-limit", type=float, default=STEER_LIMIT)
     args = p.parse_args()
     args.margin_bounds = (args.margin_min, args.margin_max)

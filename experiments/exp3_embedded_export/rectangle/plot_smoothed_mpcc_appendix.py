@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-import importlib.util
 import json
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.lines import Line2D
-from matplotlib.patches import Patch, Rectangle
+from matplotlib.patches import Rectangle
 
 
 THIS_DIR = Path(__file__).resolve().parent
@@ -18,26 +17,47 @@ RESULT_DIR = EXP_DIR / "results" / "rectangle" / "smoothed_mpcc_full_rollout"
 LAPANDA_PATH = RESULT_DIR / "lapanda_smooth_rollout_30.json"
 ACADOS_PATH = RESULT_DIR / "acados_smooth_rollout_to_target.json"
 
-_spec = importlib.util.spec_from_file_location("smoothed_trajectory_plot", THIS_DIR / "plot_smoothed_mpcc_trajectories.py")
-if _spec is None or _spec.loader is None:
-    raise RuntimeError("could not load plot_smoothed_mpcc_trajectories.py")
-geometry = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(geometry)
+BASE_RECTANGLE = np.array([-0.35, 0.35, -0.22, 0.22], dtype=float)
+MARGINS = np.array([0.12, 0.12, 0.01, 0.22], dtype=float)
+TAU = 0.05
 
-BLUE = "#0000FF"
-RED = "#FF0000"
-GREEN = "#00A83B"
+BLUE = "#1F77B4"
+RED = "#D62728"
+GREEN = "#2CA02C"
+LIGHT_GREEN = "#7FBF7B"
 GRAY = "#707070"
 GRID = "#D8DCE3"
-LEGEND_FACE = "#F2F3F5"
-LEGEND_EDGE = "#C9CDD6"
+PANEL_FACE = "#F3F3F3"
+LEGEND_FACE = "#FFFFFF"
+LEGEND_EDGE = "#D3D6DE"
+LEGEND_FRAME_ALPHA = 0.96
 INK = "#1F2430"
-ICLR_TEXT_WIDTH_IN = 6.75
+ICLR_TEXT_WIDTH_IN = 5.5
 PANEL_BOX_ASPECT = 0.46
-TICK_FONTSIZE = 8.0
-LABEL_FONTSIZE = 8.0
-LEGEND_FONTSIZE = 6.2
-PANEL_LABEL_FONTSIZE = 11.0
+TICK_FONTSIZE = 7.0
+LABEL_FONTSIZE = 7.0
+LEGEND_FONTSIZE = 7.0
+PANEL_LABEL_FONTSIZE = 8.0
+
+
+def safety_bounds() -> tuple[float, float, float, float]:
+    return (
+        BASE_RECTANGLE[0] - MARGINS[0],
+        BASE_RECTANGLE[1] + MARGINS[1],
+        BASE_RECTANGLE[2] - MARGINS[2],
+        BASE_RECTANGLE[3] + MARGINS[3],
+    )
+
+
+def smooth_constraint(x: np.ndarray, y: np.ndarray) -> np.ndarray:
+    xmin, xmax, ymin, ymax = safety_bounds()
+    distances = np.stack((xmin - x, x - xmax, ymin - y, y - ymax), axis=0)
+    scaled = distances / TAU
+    offset = np.max(scaled, axis=0, keepdims=True)
+    logsumexp = np.squeeze(offset, axis=0) + np.log(
+        np.sum(np.exp(scaled - offset), axis=0)
+    )
+    return TAU * logsumexp - TAU * np.log(4.0)
 
 
 def load_record(path: Path) -> dict:
@@ -58,7 +78,7 @@ def smooth_vertices() -> np.ndarray:
     gx = np.linspace(-0.62, 0.62, 600)
     gy = np.linspace(-0.38, 0.60, 500)
     xx, yy = np.meshgrid(gx, gy)
-    values = geometry.smooth_constraint(xx, yy)
+    values = smooth_constraint(xx, yy)
     temporary_figure, temporary_axis = plt.subplots()
     contour = temporary_axis.contour(xx, yy, values, levels=[0.0])
     vertices = np.asarray(contour.get_paths()[0].vertices, dtype=float)
@@ -67,16 +87,23 @@ def smooth_vertices() -> np.ndarray:
 
 
 def style_axis(axis) -> None:
+    axis.set_facecolor(PANEL_FACE)
     axis.tick_params(
         axis="both",
         labelsize=TICK_FONTSIZE,
-        width=0.68,
-        length=2.4,
+        top=False,
+        right=False,
+        bottom=True,
+        left=True,
+        direction="out",
+        width=0.60,
+        length=1.8,
+        color="#20232A",
         pad=1.3,
     )
     axis.xaxis.labelpad = 1.8
     axis.yaxis.labelpad = 1.8
-    axis.grid(True, color="#E6E8F0", linewidth=0.42, alpha=0.70)
+    axis.grid(True, color="#C6C6C6", linewidth=0.45, alpha=0.42)
     axis.set_axisbelow(True)
     for spine in axis.spines.values():
         spine.set_linewidth(0.70)
@@ -110,34 +137,34 @@ def main() -> None:
     figure, (trajectory_axis, time_axis) = plt.subplots(
         1,
         2,
-        figsize=(ICLR_TEXT_WIDTH_IN, 2.18),
-        gridspec_kw={"width_ratios": [1.0, 1.0]},
+        figsize=(ICLR_TEXT_WIDTH_IN, 2.5),
+        gridspec_kw={"width_ratios": [0.65, 0.35]},
     )
 
     vertices = smooth_vertices()
     trajectory_axis.fill(
         vertices[:, 0],
         vertices[:, 1],
-        facecolor="#FBE8E8",
-        edgecolor=GREEN,
-        linewidth=1.35,
-        alpha=0.64,
-        zorder=0,
+        facecolor="none",
+        edgecolor=LIGHT_GREEN,
+        linewidth=1.00,
+        alpha=1.0,
+        zorder=1,
     )
-    xmin, xmax, ymin, ymax = geometry.safety_bounds()
+    xmin, xmax, ymin, ymax = safety_bounds()
     trajectory_axis.add_patch(
         Rectangle(
             (xmin, ymin),
             xmax - xmin,
             ymax - ymin,
             fill=False,
-            edgecolor=GRAY,
-            linewidth=0.95,
+            edgecolor=GREEN,
+            linewidth=0.80,
             linestyle=(0, (3.2, 2.2)),
-            zorder=1,
+            zorder=2,
         )
     )
-    bxmin, bxmax, bymin, bymax = geometry.BASE_RECTANGLE
+    bxmin, bxmax, bymin, bymax = BASE_RECTANGLE
     bymin += 0.10
     bymax += 0.10
     trajectory_axis.add_patch(
@@ -146,47 +173,50 @@ def main() -> None:
             bxmax - bxmin,
             bymax - bymin,
             facecolor="white",
-            edgecolor="black",
-            linewidth=1.1,
-            hatch="////",
-            zorder=2,
+            edgecolor=GREEN,
+            linewidth=1.60,
+            zorder=3,
         )
+    )
+    trajectory_axis.scatter(
+        [0.5 * (bxmin + bxmax)],
+        [0.5 * (bymin + bymax)],
+        marker="+",
+        color=GREEN,
+        s=25,
+        linewidths=1.20,
+        zorder=4,
     )
 
     trajectory_axis.plot(
         lapanda_states[:, 0],
         lapanda_states[:, 1],
-        color=BLUE,
-        linewidth=1.7,
-        marker="o",
-        markersize=2.9,
-        markevery=3,
+        color=RED,
+        linewidth=1.50,
         zorder=7,
     )
     trajectory_axis.plot(
         acados_states[:, 0],
         acados_states[:, 1],
-        color=RED,
-        linewidth=1.35,
+        color=BLUE,
+        linewidth=1.00,
         linestyle=(0, (4.5, 2.0)),
-        marker="s",
-        markersize=2.9,
-        markevery=(1, 3),
         zorder=8,
     )
-    trajectory_axis.scatter([-1.2], [0.0], marker="^", s=23, color=GREEN, zorder=9)
-    trajectory_axis.scatter([1.2], [0.0], marker="*", s=34, color=GREEN, zorder=9)
-    trajectory_axis.set_xlim(-1.30, 1.30)
-    trajectory_axis.set_ylim(-0.42, 0.95)
-    trajectory_axis.set_box_aspect(PANEL_BOX_ASPECT)
+    trajectory_axis.scatter([-1.2], [0.0], marker="^", s=23, color="black", zorder=9)
+    trajectory_axis.scatter([1.2], [0.0], marker="*", s=34, color="black", zorder=9)
+    trajectory_axis.set_xlim(-1.40, 1.40)
+    trajectory_axis.set_xticks([-1.40, -0.70, 0.00, 0.70, 1.40])
+    trajectory_axis.set_ylim(-0.40, 0.60)
+    trajectory_axis.set_yticks([-0.40, -0.20, 0.00, 0.20, 0.40, 0.60])
+    trajectory_axis.set_box_aspect(1.00 / 2.80)
     trajectory_axis.set_xlabel(r"$p_x$", fontsize=LABEL_FONTSIZE)
     trajectory_axis.set_ylabel(r"$p_y$", fontsize=LABEL_FONTSIZE)
     style_axis(trajectory_axis)
-    trajectory_axis.legend(
+    trajectory_legend = trajectory_axis.legend(
         handles=[
-            Patch(facecolor="#FBE8E8", edgecolor=GREEN, label="Smoothed obstacle"),
-            Line2D([0], [0], color=BLUE, linewidth=1.7, marker="o", markersize=3.2, label="lapanda"),
-            Line2D([0], [0], color=RED, linewidth=1.35, linestyle=(0, (4.5, 2.0)), marker="s", markersize=3.2, label="acados"),
+            Line2D([0], [0], color=RED, linewidth=1.50, label="lapanda"),
+            Line2D([0], [0], color=BLUE, linewidth=1.00, linestyle=(0, (4.5, 2.0)), label="acados"),
         ],
         loc="upper right",
         fontsize=LEGEND_FONTSIZE,
@@ -194,33 +224,34 @@ def main() -> None:
         fancybox=True,
         facecolor=LEGEND_FACE,
         edgecolor=LEGEND_EDGE,
-        framealpha=0.98,
-        borderpad=0.26,
-        handlelength=1.55,
-        handletextpad=0.42,
-        labelspacing=0.18,
+        framealpha=LEGEND_FRAME_ALPHA,
+        borderpad=0.30,
+        handlelength=1.70,
+        handletextpad=0.48,
+        labelspacing=0.22,
     )
+    trajectory_legend.get_frame().set_linewidth(0.50)
 
     lapanda_steps = np.arange(1, len(lapanda_total) + 1)
     acados_steps = np.arange(1, len(acados_total) + 1)
     time_axis.plot(
         lapanda_steps,
         lapanda_total,
-        color=BLUE,
-        linewidth=1.35,
+        color=RED,
+        linewidth=1.50,
         marker="o",
-        markersize=3.0,
+        markersize=2.0,
         label="lapanda",
         zorder=4,
     )
     time_axis.plot(
         acados_steps,
         acados_total,
-        color=RED,
-        linewidth=1.2,
+        color=BLUE,
+        linewidth=1.00,
         linestyle="--",
         marker="s",
-        markersize=2.8,
+        markersize=2.0,
         label="acados",
         zorder=3,
     )
@@ -232,21 +263,22 @@ def main() -> None:
     time_axis.set_xticks([1, 5, 10, 15, 20, 25, 30])
     time_axis.set_xlabel("MPC step", fontsize=LABEL_FONTSIZE)
     time_axis.set_ylabel("Total time (ms)", fontsize=LABEL_FONTSIZE)
-    time_axis.set_box_aspect(PANEL_BOX_ASPECT)
+    time_axis.set_box_aspect((0.65 / 0.35) * (1.00 / 2.80))
     style_axis(time_axis)
-    time_axis.legend(
+    time_legend = time_axis.legend(
         loc="upper right",
         fontsize=LEGEND_FONTSIZE,
         frameon=True,
         fancybox=True,
         facecolor=LEGEND_FACE,
         edgecolor=LEGEND_EDGE,
-        framealpha=0.98,
-        borderpad=0.26,
-        handlelength=1.55,
-        handletextpad=0.42,
-        labelspacing=0.18,
+        framealpha=LEGEND_FRAME_ALPHA,
+        borderpad=0.30,
+        handlelength=1.70,
+        handletextpad=0.48,
+        labelspacing=0.22,
     )
+    time_legend.get_frame().set_linewidth(0.50)
 
     for axis, label in zip(
         (trajectory_axis, time_axis),
@@ -263,7 +295,7 @@ def main() -> None:
             fontfamily="Times New Roman",
             color=INK,
         )
-    figure.subplots_adjust(left=0.070, right=0.994, top=0.955, bottom=0.315, wspace=0.24)
+    figure.subplots_adjust(left=0.070, right=0.994, top=0.955, bottom=0.315, wspace=0.18)
 
     RESULT_DIR.mkdir(parents=True, exist_ok=True)
     output = RESULT_DIR / "smoothed_mpcc_rollout_and_step_time"

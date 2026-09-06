@@ -23,9 +23,11 @@ EXP_DIR = THIS_DIR.parent
 DEFAULT_OUTDIR = (
     EXP_DIR / "results" / "rectangle" / "smoothed_mpcc_full_rollout"
 )
-_spec = importlib.util.spec_from_file_location("rectangle_mpcc_diagnostic", THIS_DIR / "diagnose_mpcc.py")
+_spec = importlib.util.spec_from_file_location(
+    "smoothed_rectangle_problem", THIS_DIR / "smoothed_rectangle_problem.py"
+)
 if _spec is None or _spec.loader is None:
-    raise RuntimeError("could not load diagnose_mpcc.py")
+    raise RuntimeError("could not load smoothed_rectangle_problem.py")
 diag = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(diag)
 

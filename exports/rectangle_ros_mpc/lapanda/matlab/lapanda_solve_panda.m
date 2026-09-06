@@ -1,5 +1,5 @@
 function result = lapanda_solve_panda(solver, x0, theta, variable, options)
-%LAPANDA_SOLVE_PANDA Solve a box-constrained problem with PANDA.
+%lapanda_SOLVE_PANDA Solve a box-constrained problem with PANDA.
 
 if nargin < 5 || isempty(options)
     options = struct();

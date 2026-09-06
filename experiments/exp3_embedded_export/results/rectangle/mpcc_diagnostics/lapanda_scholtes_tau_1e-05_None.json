@@ -1,9 +1,0 @@
-{
-  "solver": "lapanda",
-  "mode": "scholtes",
-  "tau": 1e-05,
-  "guess_source": null,
-  "forward_hessian": null,
-  "success": false,
-  "exception": "RuntimeError('.../casadi/core/code_generator.cpp:166: Assertion \"Function::check_name(this->name)\" failed:\\nNotify the CasADi developers.')"
-}

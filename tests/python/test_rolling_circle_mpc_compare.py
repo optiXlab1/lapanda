@@ -87,7 +87,7 @@ def _run_rolling_ipopt(problem, n, dt, obstacle, safe_radius):
     per_step_times = []
 
     solve_start = time.perf_counter()
-    for _ in range(30):
+    for _ in range(50):
         theta = np.concatenate([state, target])
         step_start = time.perf_counter()
         result = solver(
@@ -175,7 +175,7 @@ def _run_rolling_lapanda(problem, n, dt, obstacle, safe_radius):
     per_step_times = []
 
     solve_start = time.perf_counter()
-    for _ in range(30):
+    for _ in range(50):
         theta = np.concatenate([state, target])
         step_start = time.perf_counter()
         result = solver.solve_lapanda(

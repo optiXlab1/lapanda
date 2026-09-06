@@ -1,5 +1,5 @@
 function library_path = lapanda_build_oracle_library(project_dir, name, cmake_generator)
-%LAPANDA_BUILD_ORACLE_LIBRARY Build the generated CasADi oracle as a DLL/SO.
+%lapanda_BUILD_ORACLE_LIBRARY Build the generated CasADi oracle as a DLL/SO.
 
 if nargin < 2 || isempty(name)
     name = 'lapanda_oracle';

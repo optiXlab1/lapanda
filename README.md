@@ -13,6 +13,12 @@ The repository contains the solver runtime, user interfaces, embedded export
 utilities, and the paper experiments. The Python distribution and import name
 are both `lapanda`.
 
+<p align="center">
+  <img src="docs/assets/lapanda_software_architecture.png" alt="lapanda software architecture and multi-platform workflow" width="900">
+</p>
+
+<p align="center"><em>Software architecture and multi-platform workflow.</em></p>
+
 ## Project Summary
 
 lapanda targets problems of the form
@@ -243,6 +249,16 @@ First MPC rollout timing:
 python experiments\exp2_OCPs\plot_first_mpc_timing.py
 ```
 
+Nonlinear Quadrotor horizon scaling (lapanda measurements and figure):
+
+```powershell
+python experiments\exp2_OCPs\run_nonlinear_horizon_scaling.py
+python experiments\exp2_OCPs\plot_horizon_scaling.py
+```
+
+The retained scaling CSV also contains the TurboMPC-GPU measurements collected
+in its separate runtime environment.
+
 The paper SafePDP baseline uses COC mode.  TurboMPC data are read from the
 existing `turbompc/results` files for Quadrotor and Robot Arm; CartPole omits
 TurboMPC.
@@ -269,6 +285,14 @@ Rectangle task:
 python experiments\exp3_embedded_export\rectangle\run_lapanda.py
 python experiments\exp3_embedded_export\rectangle\acados.py --backend acados
 python experiments\exp3_embedded_export\rectangle\plot_summary.py
+```
+
+Smoothed rectangular-obstacle rollout used by the appendix:
+
+```powershell
+python experiments\exp3_embedded_export\rectangle\run_smoothed_mpcc_lapanda_rollout.py
+python experiments\exp3_embedded_export\rectangle\run_smoothed_mpcc_acados_rollout.py
+python experiments\exp3_embedded_export\rectangle\plot_smoothed_mpcc_appendix.py
 ```
 
 The rectangle paper figure defaults to the exported C result directory:

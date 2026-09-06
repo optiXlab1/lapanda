@@ -14,12 +14,13 @@ import plot_closed_loop as base
 
 OUT_DIR = base.OUT_DIR
 
-TICK_FONTSIZE = 8.0
-LABEL_FONTSIZE = 8.0
-LEGEND_FONTSIZE = 8.0
-PANEL_LABEL_FONTSIZE = 11.0
-LEGEND_FACE = "#F2F3F5"
-LEGEND_EDGE = "#C9CDD6"
+TICK_FONTSIZE = 7.0
+LABEL_FONTSIZE = 7.0
+LEGEND_FONTSIZE = 7.0
+PANEL_LABEL_FONTSIZE = 8.0
+PANEL_FACE = "#F3F3F3"
+LEGEND_FACE = "#FFFFFF"
+LEGEND_EDGE = "#D3D6DE"
 LEGEND_FRAME_ALPHA = 0.96
 
 
@@ -28,7 +29,7 @@ METHODS = [
         "label": "lapanda",
         "color": base.COLORS["alm"],
         "linestyle": "-",
-        "linewidth": 1.22,
+        "linewidth": 1.20,
         "marker": "o",
         "markevery": (0, 8),
         "path_kind": "alm",
@@ -37,7 +38,7 @@ METHODS = [
         "label": "SafePDP",
         "color": base.COLORS["safepdp_coc"],
         "linestyle": "-",
-        "linewidth": 1.22,
+        "linewidth": 1.00,
         "marker": "s",
         "markevery": (3, 8),
         "path_kind": "safepdp",
@@ -46,7 +47,7 @@ METHODS = [
         "label": "TurboMPC-CPU",
         "color": base.COLORS["turbo_cpu"],
         "linestyle": "-",
-        "linewidth": 1.22,
+        "linewidth": 1.00,
         "marker": "^",
         "markevery": (6, 8),
         "path_kind": "turbo_cpu_warm",
@@ -120,18 +121,31 @@ def plot_panel(ax, exp: dict, metric: str) -> None:
 
 
 def style_benchmark_axis(ax) -> None:
-    ax.set_facecolor("white")
+    ax.set_facecolor(PANEL_FACE)
     ax.minorticks_on()
     ax.yaxis.set_major_locator(LogLocator(base=10.0, numticks=5))
     ax.yaxis.set_minor_locator(LogLocator(base=10.0, subs=np.arange(2, 10) * 0.1, numticks=50))
     ax.yaxis.set_minor_formatter(NullFormatter())
-    ax.grid(True, which="major", color="#E6E8F0", linestyle="-", linewidth=0.42, alpha=0.70)
-    ax.grid(True, which="minor", axis="y", color="#E6E8F0", linestyle="-", linewidth=0.28, alpha=0.32)
+    ax.grid(True, which="major", color="#C6C6C6", linestyle="-", linewidth=0.45, alpha=0.42)
+    ax.grid(True, which="minor", axis="y", color="#C6C6C6", linestyle="-", linewidth=0.26, alpha=0.20)
     for spine in ax.spines.values():
         spine.set_color("#1F1F1F")
         spine.set_linewidth(0.72)
-    ax.tick_params(axis="both", which="major", labelsize=TICK_FONTSIZE, length=2.4, width=0.68, pad=1.3, color="#30343B")
-    ax.tick_params(axis="both", which="minor", length=1.3, width=0.45, color="#7A7F89")
+    ax.tick_params(
+        axis="both",
+        which="major",
+        labelsize=TICK_FONTSIZE,
+        top=False,
+        right=False,
+        bottom=True,
+        left=True,
+        direction="out",
+        length=1.8,
+        width=0.60,
+        pad=1.3,
+        color="#20232A",
+    )
+    ax.tick_params(axis="both", which="minor", top=False, right=False, length=1.0, width=0.40, color="#7A7F89")
     ax.xaxis.label.set_size(LABEL_FONTSIZE)
     ax.yaxis.label.set_size(LABEL_FONTSIZE)
     ax.xaxis.labelpad = 1.8
@@ -189,7 +203,7 @@ def main() -> None:
         handletextpad=0.48,
     )
     legend = fig.legends[0]
-    legend.get_frame().set_linewidth(0.50)
+    legend.get_frame().set_linewidth(0.75)
     legend.get_frame().set_facecolor(LEGEND_FACE)
     legend.get_frame().set_alpha(LEGEND_FRAME_ALPHA)
 

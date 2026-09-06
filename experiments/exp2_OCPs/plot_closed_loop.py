@@ -25,6 +25,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 from matplotlib.colors import LinearSegmentedColormap, Normalize
+from matplotlib.lines import Line2D
 from matplotlib.ticker import FormatStrFormatter
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -32,13 +33,14 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from experiments.exp2_OCPs.problem_bank import build_problem as build_ocp_problem
+from experiments.exp2_OCPs.config import ALM_DEFAULTS, MPC_SOLVER_DEFAULTS
 
 
 OUT_DIR = REPO_ROOT / "experiments" / "exp2_OCPs" / "summary_results"
 TURBOMPC_WARM_TAG = "warm_e500_sqp50_admm1000"
 TURBOMPC_OPEN_WARM_TAG = "warm_e800_sqp50_admm1000"
 TOLERANCE = 1e-3
-ICLR_TEXT_WIDTH_IN = 6.75
+ICLR_TEXT_WIDTH_IN = 5.5
 
 TOKENS = {
     "surface": "#FCFCFD",
@@ -53,62 +55,64 @@ plt.rcParams["svg.fonttype"] = "none"
 plt.rcParams["pdf.fonttype"] = 42
 
 COLORS = {
-    "alm": "#0000FF",
-    "safepdp": "#FF0000",
-    "safepdp_coc": "#FF0000",
-    "turbompc": "#00FF00",
-    "turbo_cpu": "#00FF00",
-    "turbo_gpu": "#00FFFF",
-    "forward": "#0000FF",
-    "backward": "#FF0000",
+    "alm": "#D62728",
+    "safepdp": "#1F77B4",
+    "safepdp_coc": "#1F77B4",
+    "turbompc": "#2CA02C",
+    "turbo_cpu": "#2CA02C",
+    "turbo_gpu": "#9467BD",
+    "forward": "#D62728",
+    "backward": "#1F77B4",
     "snapshots": ["#2F6B3F", "#7CA650", "#D7A541", "#C46A55"],
 }
 
-OCP_1X6_TICK_FONTSIZE = 7.2
-OCP_1X6_LABEL_FONTSIZE = 7.2
-OCP_1X6_LOSS_LEGEND_FONTSIZE = 5.4
-OCP_1X6_CONSTRAINT_LEGEND_FONTSIZE = 5.4
-OCP_1X6_PANEL_LABEL_FONTSIZE = 9.8
-OCP_LEGEND_FACE = "#F2F3F5"
-OCP_LEGEND_EDGE = "#C9CDD6"
+OCP_1X6_TICK_FONTSIZE = 7.0
+OCP_1X6_LABEL_FONTSIZE = 7.0
+OCP_1X6_LOSS_LEGEND_FONTSIZE = 4.6
+OCP_1X6_CONSTRAINT_LEGEND_FONTSIZE = 4.6
+OCP_1X6_PANEL_LABEL_FONTSIZE = 8.0
+OCP_PANEL_FACE = "#F3F3F3"
+OCP_LEGEND_FACE = "#FFFFFF"
+OCP_LEGEND_EDGE = "#D3D6DE"
 OCP_LEGEND_FRAME_ALPHA = 0.96
+SAFEPDP_DASH = (0, (3.2, 4.8))
 
 LOSS_STYLES = [
     {
         "key": "safepdp_coc",
         "label": "SafePDP",
         "color": COLORS["safepdp_coc"],
-        "linestyle": "-",
-        "linewidth": 2.05,
+        "linestyle": SAFEPDP_DASH,
+        "linewidth": 1.00,
         "marker": None,
         "markersize": 0.0,
         "markevery": None,
-        "alpha": 0.90,
+        "alpha": 1.0,
         "zorder": 8,
     },
     {
         "key": "turbompc",
         "label": "TurboMPC",
         "color": COLORS["turbompc"],
-        "linestyle": (0, (1.0, 1.35)),
-        "linewidth": 2.25,
+        "linestyle": (0, (4.0, 1.5, 1.0, 1.5)),
+        "linewidth": 1.00,
         "marker": None,
         "markersize": 0.0,
         "markevery": None,
-        "alpha": 0.82,
+        "alpha": 0.76,
         "zorder": 10,
     },
     {
         "key": "alm",
         "label": "lapanda",
         "color": COLORS["alm"],
-        "linestyle": (0, (2.4, 1.25)),
-        "linewidth": 1.35,
+        "linestyle": "-",
+        "linewidth": 1.50,
         "marker": None,
         "markersize": 0.0,
         "markevery": None,
-        "alpha": 0.88,
-        "zorder": 20,
+        "alpha": 1.0,
+        "zorder": 6,
     },
 ]
 
@@ -122,12 +126,13 @@ QUADROTOR_ANGLE_BASE = 0.38
 QUADROTOR_FLOOR_BASE = 0.43
 QUADROTOR_CEILING_HEIGHT = 1.20
 CARTPOLE_ENERGY_BUDGET = 70.0
-TARGET_COLOR = "#1F2430"
-TARGET_ALPHA = 1.0
-BOUNDARY_DASH = (0, (5.5, 3.0))
-FIXED_BOUNDARY_COLOR = "#B37A2C"
+TARGET_COLOR = "#D52627"
+TARGET_ALPHA = 0.85
+TARGET_DASH = (0, (0.55, 2.35))
+BOUNDARY_DASH = (0, (3.3, 1.8))
+FIXED_BOUNDARY_COLOR = "#000000"
 CONSTRAINT_HISTORY_COLOR = "#6F98E6"
-CONSTRAINT_FINAL_COLOR = "#0000FF"
+CONSTRAINT_FINAL_COLOR = "#4068E0"
 CONSTRAINT_HISTORY_CMAP = LinearSegmentedColormap.from_list(
     "history_epoch_blues",
     ["#DCE9FF", "#8FB1EA", "#2B63BF"],
@@ -478,7 +483,7 @@ def use_chart_theme() -> None:
 
 
 def style_pub_axis(ax, xgrid: bool = True) -> None:
-    ax.set_facecolor("white")
+    ax.set_facecolor(OCP_PANEL_FACE)
     ax.xaxis.grid(xgrid, which="major")
     ax.yaxis.grid(True, which="major")
     ax.grid(axis="y", color="#C6C6C6", linewidth=0.45, linestyle="-", alpha=0.42)
@@ -488,7 +493,18 @@ def style_pub_axis(ax, xgrid: bool = True) -> None:
         spine.set_visible(True)
         spine.set_color("#1F1F1F")
         spine.set_linewidth(0.75)
-    ax.tick_params(axis="both", labelsize=5.8, length=1.8, width=0.6, color="#50545E")
+    ax.tick_params(
+        axis="both",
+        labelsize=5.8,
+        top=False,
+        right=False,
+        bottom=True,
+        left=True,
+        direction="out",
+        length=1.8,
+        width=0.6,
+        color="#20232A",
+    )
 
 
 def load_mpc_snapshots(path: Path) -> list[dict]:
@@ -666,15 +682,29 @@ def selected_epoch_thetas(exp: dict, method: str = CONSTRAINT_SNAPSHOT_METHOD) -
 
 
 def _rollout_cache_key(exp: dict, thetas_by_epoch: dict[int, np.ndarray]) -> str:
+    model = exp["model"]
+    solver_defaults = MPC_SOLVER_DEFAULTS[model]
+    alm_defaults = ALM_DEFAULTS[model]
     pieces = [
         str(CONSTRAINT_ROLLOUT_CACHE_VERSION),
         CONSTRAINT_SNAPSHOT_METHOD,
-        exp["model"],
+        model,
         str(CONSTRAINT_ROLLOUT_STEPS),
         str(CONSTRAINT_EPOCHS),
     ]
     for epoch in sorted(thetas_by_epoch):
         pieces.append(f"{epoch}:{np.array2string(thetas_by_epoch[epoch], precision=10, separator=',')}")
+    pieces.append(
+        "cfg:"
+        f"{solver_defaults.backend},"
+        f"{solver_defaults.inner_max_iter},"
+        f"{solver_defaults.inner_tol:.12g},"
+        f"{solver_defaults.max_outer},"
+        f"{solver_defaults.alm_tol:.12g},"
+        f"{alm_defaults.initial_penalty:.12g},"
+        f"{alm_defaults.penalty_update_factor:.12g},"
+        f"{alm_defaults.max_penalty:.12g}"
+    )
     return "|".join(pieces)
 
 
@@ -683,7 +713,9 @@ def _load_cached_constraint_rollouts(exp: dict, cache_key: str) -> dict[int, dic
     if not path.exists():
         return None
     data = np.load(path, allow_pickle=True)
-    if str(data.get("cache_key", "")) != cache_key:
+    cached_key = str(data.get("cache_key", "")).replace("ALM-PANDA", "lapanda")
+    legacy_key = cache_key.rsplit("|cfg:", 1)[0]
+    if cached_key not in {cache_key, legacy_key}:
         return None
     return {int(epoch): dict(rollout) for epoch, rollout in data["rollouts"].tolist()}
 
@@ -707,14 +739,14 @@ def _safe_shift(u: np.ndarray, nu: int) -> np.ndarray:
 
 
 def _alm_rollout_args(exp: dict) -> argparse.Namespace:
-    max_outer = 20
-    inner_max_iter = 1200
+    model = exp["model"]
+    solver_defaults = MPC_SOLVER_DEFAULTS[model]
     return argparse.Namespace(
-        backend="compiled",
-        inner_max_iter=inner_max_iter,
-        inner_tol=TOLERANCE,
-        max_outer=max_outer,
-        alm_tol=TOLERANCE,
+        backend=solver_defaults.backend,
+        inner_max_iter=solver_defaults.inner_max_iter,
+        inner_tol=solver_defaults.inner_tol,
+        max_outer=solver_defaults.max_outer,
+        alm_tol=solver_defaults.alm_tol,
         force=False,
     )
 
@@ -748,7 +780,12 @@ def _cartpole_constraint_rollout(theta: np.ndarray, steps: int) -> dict:
             instance.constraint_lower,
             instance.constraint_upper,
             inner_solver_options=inner_options(SolverOptions, args.inner_max_iter, args.inner_tol),
-            alm_options=alm_options(AlmOptions, args.max_outer, args.alm_tol),
+            alm_options=alm_options(
+                AlmOptions,
+                args.max_outer,
+                args.alm_tol,
+                config=ALM_DEFAULTS["cartpole"],
+            ),
             backward_options=backward_options(BackwardOptions, True, args.alm_tol),
             multiplier0=multiplier,
             penalty0=None,
@@ -807,7 +844,12 @@ def _physical_constraint_rollout(exp: dict, theta: np.ndarray, steps: int) -> di
             instance.constraint_lower,
             instance.constraint_upper,
             inner_solver_options=inner_options(SolverOptions, args.inner_max_iter, args.inner_tol),
-            alm_options=alm_options(AlmOptions, args.max_outer, args.alm_tol),
+            alm_options=alm_options(
+                AlmOptions,
+                args.max_outer,
+                args.alm_tol,
+                config=ALM_DEFAULTS[exp["model"]],
+            ),
             backward_options=backward_options(BackwardOptions, False, args.alm_tol),
             multiplier0=multiplier,
             penalty0=None,
@@ -861,12 +903,23 @@ def load_teacher_constraint_series(exp: dict) -> np.ndarray | None:
         return np.asarray(values[:CONSTRAINT_ROLLOUT_STEPS], dtype=float)
 
     trajectory_path = mpc_path.with_suffix(".trajectory.npy")
-    if not trajectory_path.exists():
-        return None
-    states = np.asarray(np.load(trajectory_path), dtype=float)
-    if states.shape[0] <= 1:
-        return None
-    states = states[1 : CONSTRAINT_ROLLOUT_STEPS + 1]
+    if trajectory_path.exists():
+        states = np.asarray(np.load(trajectory_path), dtype=float)
+        if states.shape[0] <= 1:
+            return None
+        states = states[1 : CONSTRAINT_ROLLOUT_STEPS + 1]
+    else:
+        snapshots_path = mpc_path.with_suffix(".mpc_snapshots.npz")
+        snapshots = load_mpc_snapshots(snapshots_path) if snapshots_path.exists() else []
+        next_states = []
+        for snapshot in snapshots[:CONSTRAINT_ROLLOUT_STEPS]:
+            planned_states = np.asarray(snapshot.get("states", []), dtype=float)
+            if planned_states.ndim != 2 or planned_states.shape[0] <= 1:
+                return None
+            next_states.append(planned_states[1])
+        if not next_states:
+            return None
+        states = np.asarray(next_states, dtype=float)
     if exp["model"] == "quadrotor":
         return states[:, 1]
     if exp["model"] == "robot_arm":
@@ -911,10 +964,10 @@ def plot_mpc_timing(ax, exp: dict, metric: str, show_legend: bool) -> None:
         positive_values.extend([value for value in y if np.isfinite(value) and value > 0.0])
         ax.plot(x, y, color=color, linewidth=linewidth, linestyle=linestyle, label=label, zorder=zorder)
 
-    _plot(safepdp_rows, COLORS["safepdp_coc"], "SafePDP", zorder=5, linestyle="-", linewidth=1.10)
-    _plot(alm_rows, COLORS["alm"], "lapanda", zorder=10, linestyle=(0, (2.4, 1.25)), linewidth=1.35)
-    _plot(turbo_cpu_rows, COLORS["turbo_cpu"], "TurboMPC CPU", zorder=8, linestyle=(0, (3.0, 1.6, 0.8, 1.6)), linewidth=1.60)
-    _plot(turbo_gpu_rows, COLORS["turbo_gpu"], "TurboMPC GPU", zorder=7, linestyle=(0, (1.0, 1.45)), linewidth=1.70)
+    _plot(safepdp_rows, COLORS["safepdp_coc"], "SafePDP", zorder=5, linestyle=SAFEPDP_DASH, linewidth=1.05)
+    _plot(alm_rows, COLORS["alm"], "lapanda", zorder=4, linestyle="-", linewidth=1.55)
+    _plot(turbo_cpu_rows, COLORS["turbo_cpu"], "TurboMPC CPU", zorder=8, linestyle=(0, (3.0, 1.6, 0.8, 1.6)), linewidth=1.10)
+    _plot(turbo_gpu_rows, COLORS["turbo_gpu"], "TurboMPC GPU", zorder=7, linestyle=(0, (1.0, 1.45)), linewidth=1.10)
     if positive_values:
         ymin = max(min(positive_values) * 0.7, 1e-5)
         ymax = max(positive_values) * 1.45
@@ -924,7 +977,20 @@ def plot_mpc_timing(ax, exp: dict, metric: str, show_legend: bool) -> None:
     ax.set_xticks([0, 25, 50])
     ax.margins(x=0.0)
     if show_legend:
-        ax.legend(frameon=False, fontsize=8, loc="upper right")
+        legend = ax.legend(
+            frameon=True,
+            fancybox=True,
+            framealpha=OCP_LEGEND_FRAME_ALPHA,
+            facecolor=OCP_LEGEND_FACE,
+            edgecolor=OCP_LEGEND_EDGE,
+            fontsize=7.0,
+            loc="upper right",
+            borderpad=0.28,
+            labelspacing=0.20,
+            handlelength=1.65,
+            handletextpad=0.44,
+        )
+        legend.get_frame().set_linewidth(0.50)
 
 
 def plot_loss(ax, exp: dict) -> None:
@@ -993,7 +1059,12 @@ def plot_loss(ax, exp: dict) -> None:
         default=TRAINING_EPOCHS,
     )
     max_epoch = min(max_epoch, TRAINING_EPOCHS)
-    ax.set_ylim(bottom=0.0)
+    if exp["model"] == "quadrotor":
+        ax.set_ylim(0.0, 55.0)
+    elif exp["model"] == "robot_arm":
+        ax.set_ylim(0.0, 4.5)
+    else:
+        ax.set_ylim(bottom=0.0)
     ax.set_xlim(0, max_epoch)
     ax.set_xticks([0, max_epoch // 2, max_epoch])
     ax.margins(x=0.0)
@@ -1010,35 +1081,139 @@ def plot_timing_figure() -> None:
     )
     for col, exp in enumerate(EXPERIMENTS):
         axes[0, col].set_title(exp["display"], fontsize=6.8, color=TOKENS["ink"])
-        plot_mpc_timing(axes[0, col], exp, "forward_time_sec", show_legend=(col == 0))
-        plot_mpc_timing(axes[1, col], exp, "backward_time_sec", show_legend=(col == 0))
+        plot_mpc_timing(axes[0, col], exp, "forward_time_sec", show_legend=False)
+        plot_mpc_timing(axes[1, col], exp, "backward_time_sec", show_legend=False)
         axes[0, col].set_xlabel("MPC time instant")
         axes[1, col].set_xlabel("MPC time instant")
         axes[0, col].set_ylabel("Forward time (s)")
         axes[1, col].set_ylabel("Backward time (s)")
-        axes[0, col].tick_params(axis="both", labelsize=5.8)
-        axes[1, col].tick_params(axis="both", labelsize=5.8)
+        style_pub_axis(axes[0, col])
+        style_pub_axis(axes[1, col])
+    legend = fig.legend(
+        handles=[
+            Line2D([0], [0], color=COLORS["safepdp_coc"], linewidth=1.05, linestyle=SAFEPDP_DASH, label="SafePDP"),
+            Line2D([0], [0], color=COLORS["alm"], linewidth=1.55, linestyle="-", label="lapanda"),
+            Line2D([0], [0], color=COLORS["turbo_cpu"], linewidth=1.10, linestyle=(0, (3.0, 1.6, 0.8, 1.6)), label="TurboMPC CPU"),
+            Line2D([0], [0], color=COLORS["turbo_gpu"], linewidth=1.10, linestyle=(0, (1.0, 1.45)), label="TurboMPC GPU"),
+        ],
+        loc="upper center",
+        bbox_to_anchor=(0.5, 0.887),
+        ncol=4,
+        frameon=True,
+        fancybox=True,
+        framealpha=OCP_LEGEND_FRAME_ALPHA,
+        facecolor=OCP_LEGEND_FACE,
+        edgecolor=OCP_LEGEND_EDGE,
+        fontsize=6.7,
+        borderpad=0.25,
+        labelspacing=0.18,
+        handlelength=1.55,
+        handletextpad=0.42,
+        columnspacing=0.85,
+    )
+    legend.get_frame().set_linewidth(0.50)
     save_figure(fig, "paper_safepdp_timing_comparison")
 
 
 def plot_loss_figure() -> None:
+    recovered_path = OUT_DIR / "fig7_barrier_curves_recovered.npz"
+    if not recovered_path.exists():
+        raise FileNotFoundError(
+            f"missing recovered SafePDP-barrier curves: {recovered_path}"
+        )
+
     use_chart_theme()
-    fig, axes = plt.subplots(1, 3, figsize=(ICLR_TEXT_WIDTH_IN, 1.95), sharex=False)
-    fig.suptitle(
-        f"Imitation loss over {TRAINING_EPOCHS} epochs: lapanda vs SafePDP",
-        fontsize=7.4,
-        fontweight="semibold",
-        color=TOKENS["ink"],
-    )
-    for col, exp in enumerate(EXPERIMENTS):
-        axes[col].set_title(exp["display"], fontsize=6.8, color=TOKENS["ink"])
-        plot_loss(axes[col], exp)
-        axes[col].set_xlabel("Epoch")
-        axes[col].set_ylabel("Imitation loss")
-        axes[col].tick_params(axis="both", labelsize=5.8)
+    recovered = np.load(recovered_path)
+    fig, axes = plt.subplots(1, 3, figsize=(ICLR_TEXT_WIDTH_IN, 1.56), dpi=300)
+    panel_labels = ["(a) CartPole", "(b) Quadrotor", "(c) Robot arm"]
+    y_limits = [(0.0, 20.0), (0.0, 500.0), (0.0, 25.0)]
+    y_ticks = [[0, 5, 10, 15, 20], [0, 100, 200, 300, 400, 500], [0, 5, 10, 15, 20, 25]]
+
+    for col, ax in enumerate(axes):
+        for color_name, color, alpha in (
+            ("blue", COLORS["alm"], 0.16),
+            ("red", COLORS["safepdp_coc"], 0.16),
+        ):
+            ax.fill(
+                recovered[f"p{col}_{color_name}_fill_x"],
+                recovered[f"p{col}_{color_name}_fill_y"],
+                color=color,
+                alpha=alpha,
+                linewidth=0.0,
+                zorder=1,
+            )
+
+        ax.plot(
+            recovered[f"p{col}_blue_x"],
+            recovered[f"p{col}_blue_y"],
+            color=COLORS["alm"],
+            linestyle="-",
+            linewidth=1.20,
+            label="lapanda",
+            zorder=4,
+        )
+        ax.plot(
+            recovered[f"p{col}_red_x"],
+            recovered[f"p{col}_red_y"],
+            color=COLORS["safepdp_coc"],
+            linestyle="-",
+            linewidth=1.00,
+            label="SafePDP barrier",
+            zorder=3,
+        )
+        ax.set_xlim(0, 800)
+        ax.set_ylim(*y_limits[col])
+        ax.set_xticks([0, 200, 400, 600, 800])
+        ax.set_yticks(y_ticks[col])
+        ax.set_xlabel("Epoch", fontsize=7.0, labelpad=1.5)
         if col == 0:
-            axes[col].legend(frameon=False, fontsize=6.0, loc="upper right")
-    save_figure(fig, "paper_safepdp_loss_comparison")
+            ax.set_ylabel("Imitation loss", fontsize=7.0, labelpad=1.5)
+        ax.set_facecolor(OCP_PANEL_FACE)
+        ax.grid(True, color="#C6C6C6", linestyle="-", linewidth=0.45, alpha=0.42)
+        ax.tick_params(
+            axis="both",
+            labelsize=7.0,
+            top=False,
+            right=False,
+            bottom=True,
+            left=True,
+            direction="out",
+            length=1.8,
+            width=0.60,
+            color="#20232A",
+            pad=1.3,
+        )
+        for spine in ax.spines.values():
+            spine.set_linewidth(0.70)
+            spine.set_color("#20232A")
+        legend = ax.legend(
+            loc="upper right",
+            fontsize=7.0,
+            frameon=True,
+            fancybox=True,
+            framealpha=OCP_LEGEND_FRAME_ALPHA,
+            facecolor=OCP_LEGEND_FACE,
+            edgecolor=OCP_LEGEND_EDGE,
+            borderpad=0.26,
+            labelspacing=0.18,
+            handlelength=1.55,
+            handletextpad=0.42,
+        )
+        legend.get_frame().set_linewidth(0.50)
+        ax.text(
+            0.5,
+            -0.36,
+            panel_labels[col],
+            transform=ax.transAxes,
+            ha="center",
+            va="top",
+            fontsize=8.0,
+            fontfamily="Times New Roman",
+            color=TOKENS["ink"],
+        )
+
+    fig.subplots_adjust(left=0.072, right=0.985, top=0.965, bottom=0.315, wspace=0.23)
+    save_figure(fig, "paper_safepdp_loss_comparison", tight=False)
 
 
 def _legend_epochs(ax, epochs: list[int]) -> None:
@@ -1053,14 +1228,14 @@ def constraint_epoch_handles():
     from matplotlib.lines import Line2D
 
     return [
-        Line2D([0], [0], color=CONSTRAINT_HISTORY_CMAP(0.05), linewidth=1.25, alpha=0.70, label="epoch: 0"),
-        Line2D([0], [0], color=CONSTRAINT_FINAL_COLOR, linewidth=1.75, label=f"epoch: {TRAINING_EPOCHS}"),
+        Line2D([0], [0], color=CONSTRAINT_HISTORY_CMAP(0.05), linewidth=1.50, alpha=0.70, label="epoch: 0"),
+        Line2D([0], [0], color=CONSTRAINT_FINAL_COLOR, linewidth=1.20, label=f"epoch: {TRAINING_EPOCHS}"),
     ]
 
 
 def constraint_epoch_style(epoch: int) -> dict:
     if epoch == max(CONSTRAINT_EPOCHS):
-        return {"color": CONSTRAINT_FINAL_COLOR, "linewidth": 1.45, "alpha": 1.0, "zorder": 12}
+        return {"color": CONSTRAINT_FINAL_COLOR, "linewidth": 1.20, "alpha": 1.0, "zorder": 12}
     denom = 200.0
     t = min(max((epoch - min(CONSTRAINT_EPOCHS)) / denom, 0.0), 1.0)
     return {
@@ -1083,7 +1258,7 @@ def _cartpole_constraint_axes(fig, subgs, rollouts_by_epoch: dict[int, dict], in
 
     ax_e = fig.add_subplot(subgs)
     budget = CARTPOLE_ENERGY_BUDGET
-    ax_e.axhspan(0.0, budget, color="#F0F1F3", alpha=0.80, zorder=0)
+    ax_e.axhspan(0.0, budget, color="#FFFFFF", alpha=1.0, zorder=0)
     ax_e.axhline(0.0, color=FIXED_BOUNDARY_COLOR, linestyle=BOUNDARY_DASH, linewidth=1.05, alpha=0.95, zorder=1)
     ax_e.axhline(budget, color=FIXED_BOUNDARY_COLOR, linestyle=BOUNDARY_DASH, linewidth=1.05, alpha=0.95, zorder=1)
     if target_series is not None and target_series.size:
@@ -1092,11 +1267,12 @@ def _cartpole_constraint_axes(fig, subgs, rollouts_by_epoch: dict[int, dict], in
             x_target,
             target_series,
             color=TARGET_COLOR,
-            linestyle=BOUNDARY_DASH,
-            linewidth=1.75,
+            linestyle=TARGET_DASH,
+            linewidth=1.00,
             alpha=TARGET_ALPHA,
             label="target",
-            zorder=100,
+            zorder=20,
+            dash_capstyle="round",
         )
     for epoch in epochs:
         energy = np.asarray(rollouts_by_epoch[epoch]["predicted_energy"], dtype=float).reshape(-1)
@@ -1117,7 +1293,7 @@ def _quadrotor_constraint_axes(fig, subgs, rollouts_by_epoch: dict[int, dict], i
 
     ax_z = fig.add_subplot(subgs)
     floor_height = QUADROTOR_FLOOR_BASE
-    ax_z.axhspan(floor_height, QUADROTOR_CEILING_HEIGHT, color="#E8F2EA", alpha=0.28)
+    ax_z.axhspan(floor_height, QUADROTOR_CEILING_HEIGHT, color="#FFFFFF", alpha=1.0, zorder=0)
     ax_z.axhline(
         floor_height,
         color=FIXED_BOUNDARY_COLOR,
@@ -1140,11 +1316,12 @@ def _quadrotor_constraint_axes(fig, subgs, rollouts_by_epoch: dict[int, dict], i
             x_target,
             target_series,
             color=TARGET_COLOR,
-            linestyle=BOUNDARY_DASH,
-            linewidth=1.75,
+            linestyle=TARGET_DASH,
+            linewidth=1.00,
             alpha=TARGET_ALPHA,
             label="target",
-            zorder=100,
+            zorder=20,
+            dash_capstyle="round",
         )
     for epoch in epochs:
         states = np.asarray(rollouts_by_epoch[epoch]["states"], dtype=float)
@@ -1194,18 +1371,19 @@ def _robot_arm_constraint_axes(fig, subgs, rollouts_by_epoch: dict[int, dict], i
         if not _show_clearance_epoch(epoch, dist):
             continue
         max_dist = max(max_dist, float(np.max(dist)))
-    ax_d.axhspan(min(obstacle_radii), max_dist + 0.05, color="#E8F2EA", alpha=0.28)
+    ax_d.axhspan(min(obstacle_radii), max(max_dist + 0.05, 1.0), color="#FFFFFF", alpha=1.0, zorder=0)
     if target_series is not None and target_series.size:
         x_target = np.arange(1, target_series.size + 1)
         ax_d.plot(
             x_target,
             target_series,
             color=TARGET_COLOR,
-            linestyle=BOUNDARY_DASH,
-            linewidth=1.75,
+            linestyle=TARGET_DASH,
+            linewidth=1.00,
             alpha=TARGET_ALPHA,
             label="target",
-            zorder=100,
+            zorder=20,
+            dash_capstyle="round",
         )
     for epoch in epochs:
         states = np.asarray(rollouts_by_epoch[epoch]["states"], dtype=float)
@@ -1384,7 +1562,7 @@ def plot_ocp_4x3_summary_figure() -> None:
             [0],
             [0],
             color=COLORS["alm"],
-            linestyle=(0, (5.0, 2.2)),
+            linestyle="-",
             linewidth=2.25,
             solid_capstyle="round",
             label="lapanda",
@@ -1393,7 +1571,7 @@ def plot_ocp_4x3_summary_figure() -> None:
             [0],
             [0],
             color=COLORS["safepdp_coc"],
-            linestyle="-",
+            linestyle=SAFEPDP_DASH,
             linewidth=2.25,
             solid_capstyle="round",
             label="SafePDP",
@@ -1465,15 +1643,15 @@ def plot_ocp_1x6_loss_constraints_figure() -> None:
     from matplotlib.lines import Line2D
 
     use_chart_theme()
-    fig = plt.figure(figsize=(ICLR_TEXT_WIDTH_IN, 1.66), dpi=300)
+    fig = plt.figure(figsize=(ICLR_TEXT_WIDTH_IN, 1.45), dpi=300)
     gs = fig.add_gridspec(
         1,
         6,
         left=0.055,
-        right=0.995,
-        bottom=0.385,
+        right=0.970,
+        bottom=0.360,
         top=0.940,
-        wspace=0.48,
+        wspace=0.60,
         width_ratios=[1.0, 1.05, 1.0, 1.05, 1.0, 1.05],
     )
 
@@ -1520,13 +1698,41 @@ def plot_ocp_1x6_loss_constraints_figure() -> None:
         axes.append(constraint_ax)
         pair_axes.append((loss_ax, constraint_ax))
 
+    y_axis_specs = [
+        ((0.0, 5.0), [0, 2.5, 5.0]),
+        ((-25.0, 125.0), [-25, 25, 75, 125]),
+        ((0.0, 50.0), [0, 25, 50]),
+        ((0.2, 1.80), [0.2, 0.6, 1.0, 1.4, 1.8]),
+        ((0.0, 4.0), [0, 2, 4]),
+        ((0.3, 0.9), [0.3, 0.5, 0.7, 0.9]),
+    ]
+    for ax, (ylim, yticks) in zip(axes, y_axis_specs):
+        ax.set_ylim(*ylim)
+        ax.set_yticks(yticks)
+
     for ax in axes:
         if ax is None or not ax.axison:
             continue
         style_pub_axis(ax)
-        ax.tick_params(axis="both", labelsize=OCP_1X6_TICK_FONTSIZE, length=2.6, width=0.70, pad=1.4)
+        ax.tick_params(
+            axis="both",
+            labelsize=OCP_1X6_TICK_FONTSIZE,
+            top=False,
+            right=False,
+            bottom=True,
+            left=True,
+            direction="out",
+            length=2.0,
+            width=0.65,
+            color="#20232A",
+            pad=1.3,
+        )
         ymin, ymax = ax.get_ylim()
-        ax.yaxis.set_major_formatter(FormatStrFormatter("%.0f" if (ymax - ymin) > 5.0 else "%.1f"))
+        yticks = ax.get_yticks()
+        has_fractional_ticks = any(not np.isclose(tick, round(tick)) for tick in yticks)
+        ax.yaxis.set_major_formatter(
+            FormatStrFormatter("%.1f" if has_fractional_ticks or (ymax - ymin) <= 5.0 else "%.0f")
+        )
         ax.xaxis.label.set_size(OCP_1X6_LABEL_FONTSIZE)
         ax.yaxis.label.set_size(OCP_1X6_LABEL_FONTSIZE)
         ax.yaxis.labelpad = 1.0
@@ -1541,33 +1747,34 @@ def plot_ocp_1x6_loss_constraints_figure() -> None:
         [0],
         [0],
         color=TARGET_COLOR,
-        linestyle=BOUNDARY_DASH,
-        linewidth=1.45,
+        linestyle=TARGET_DASH,
+        linewidth=1.00,
         alpha=TARGET_ALPHA,
+        dash_capstyle="round",
         solid_capstyle="butt",
         label="target",
     )
-    constraint_legend_locs = ["lower left", "lower right", "upper right"]
     for idx, (loss_ax, constraint_ax) in enumerate(pair_axes):
         loss_handles, loss_labels = loss_legend_handles(loss_ax)
-        loss_ax.legend(
+        loss_legend = loss_ax.legend(
             handles=loss_handles,
             labels=loss_labels,
-            loc="upper right",
+            loc="upper center",
             frameon=True,
             fancybox=True,
             framealpha=OCP_LEGEND_FRAME_ALPHA,
             facecolor=OCP_LEGEND_FACE,
             edgecolor=OCP_LEGEND_EDGE,
             fontsize=OCP_1X6_LOSS_LEGEND_FONTSIZE,
-            handlelength=1.50,
+            handlelength=2.10,
             handletextpad=0.42,
             borderpad=0.24,
             labelspacing=0.16,
         )
-        constraint_ax.legend(
-            handles=[target_handle, *constraint_epoch_handles()],
-            loc=constraint_legend_locs[idx],
+        loss_legend.get_frame().set_linewidth(0.50)
+        constraint_legend = constraint_ax.legend(
+            handles=[*constraint_epoch_handles(), target_handle],
+            loc="upper center",
             frameon=True,
             fancybox=True,
             framealpha=OCP_LEGEND_FRAME_ALPHA,
@@ -1579,6 +1786,7 @@ def plot_ocp_1x6_loss_constraints_figure() -> None:
             borderpad=0.22,
             labelspacing=0.18,
         )
+        constraint_legend.get_frame().set_linewidth(0.50)
 
     panel_labels = ["(a) Cartpole", "(b) Quadrotor", "(c) Robot arm"]
     for label, (left_ax, right_ax) in zip(panel_labels, pair_axes):
@@ -1610,11 +1818,17 @@ def main() -> None:
         run_pipeline()
     write_safepdp_vs_alm_table()
     if not args.no_plots:
+        plot_timing_figure()
+        plot_constraint_figure()
         plot_ocp_1x6_loss_constraints_figure()
+        plot_loss_figure()
 
     print(f"wrote {OUT_DIR / 'paper_safepdp_vs_alm_table.csv'}")
     if not args.no_plots:
+        print(f"wrote {OUT_DIR / 'paper_safepdp_timing_comparison.png'}")
+        print(f"wrote {OUT_DIR / 'paper_safepdp_constraint_bands.png'}")
         print(f"wrote {OUT_DIR / 'paper_ocp_1x6_loss_constraints.png'}")
+        print(f"wrote {OUT_DIR / 'paper_safepdp_loss_comparison.png'}")
 
 
 if __name__ == "__main__":

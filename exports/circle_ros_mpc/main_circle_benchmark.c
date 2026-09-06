@@ -1,5 +1,5 @@
 #include "static_casadi_oracle.h"
-#include "LAPANDA_generated_config.h"
+#include "lapanda_generated_config.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -53,17 +53,17 @@ int main(void)
         constraint_upper[i] = 0.0;
     }
 
-    solver_params.max_iterations = 3000;
+    solver_params.max_iterations = 2000;
     solver_params.tolerance = 1e-1;
     solver_params.buffer_size = 10;
     solver_params.max_stable_iter = 80;
     solver_params.verbose = 0;
 
     backward_params.enable = 1;
-    backward_params.tolerance = 1e-2;
+    backward_params.tolerance = 1e-3;
     backward_params.max_iterations = 200;
 
-    LAPANDA_static_init_alm_problem(
+    lapanda_static_init_alm_problem(
         &problem,
         constraint_lower,
         constraint_upper,
@@ -71,7 +71,7 @@ int main(void)
         &backward_params);
 
     params.max_iterations = 100;
-    params.tolerance = 2e-3;
+    params.tolerance = 1e-4;
     params.initial_penalty = 10000.0;
     params.penalty_update_factor = 10.0;
     params.max_penalty = 0.0;

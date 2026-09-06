@@ -21,21 +21,22 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 OUT_DIR = REPO_ROOT / "experiments" / "exp2_OCPs" / "summary_results"
 TURBOMPC_WARM_TAG = "warm_e800_sqp50_admm1000"
 
-BLUE = "#0000FF"
-RED = "#FF0000"
-GREEN = "#00FF00"
-PURPLE = "#8000FF"
-BLUE_FILL = "#CCCCFF"
-RED_FILL = "#FFCCCC"
-GREEN_FILL = "#CCFFCC"
-PURPLE_FILL = "#E6CCFF"
+BLUE = "#1F77B4"
+RED = "#D62728"
+GREEN = "#2CA02C"
+PURPLE = "#9467BD"
+BLUE_FILL = "#C7DDEC"
+RED_FILL = "#F5C9C9"
+GREEN_FILL = "#CAE7CA"
+PURPLE_FILL = "#E4D8EE"
 
-TICK_FONTSIZE = 8.0
-LABEL_FONTSIZE = 8.0
-LEGEND_FONTSIZE = 7.8
+TICK_FONTSIZE = 7.0
+LABEL_FONTSIZE = 7.0
+LEGEND_FONTSIZE = 7.0
 BAR_LABEL_FONTSIZE = 6.2
-PANEL_LABEL_FONTSIZE = 9.8
-LEGEND_FACE = "#F2F3F5"
+PANEL_LABEL_FONTSIZE = 8.0
+PANEL_FACE = "#F3F3F3"
+LEGEND_FACE = "#FFFFFF"
 LEGEND_EDGE = "#C9CDD6"
 LEGEND_FRAME_ALPHA = 0.96
 
@@ -43,17 +44,17 @@ METHODS = [
     {
         "key": "alm",
         "label": "lapanda",
-        "color": BLUE,
-        "fill": BLUE_FILL,
-        "linestyle": (0, (5.0, 2.2)),
-        "zorder": 5,
+        "color": RED,
+        "fill": RED_FILL,
+        "linestyle": "-",
+        "zorder": 3,
     },
     {
         "key": "coc",
         "label": "SafePDP",
-        "color": RED,
-        "fill": RED_FILL,
-        "linestyle": "-",
+        "color": BLUE,
+        "fill": BLUE_FILL,
+        "linestyle": (0, (5.0, 2.2)),
         "zorder": 4,
     },
     {
@@ -78,23 +79,29 @@ LOSS_METHODS = [
     {
         "key": "alm",
         "label": "lapanda",
-        "color": BLUE,
-        "linestyle": (0, (5.0, 2.2)),
-        "zorder": 5,
+        "color": RED,
+        "linestyle": "-",
+        "linewidth": 1.20,
+        "alpha": 1.0,
+        "zorder": 3,
     },
     {
         "key": "coc",
         "label": "SafePDP",
-        "color": RED,
-        "linestyle": "-",
+        "color": BLUE,
+        "linestyle": (0, (5.0, 2.2)),
+        "linewidth": 1.00,
+        "alpha": 1.0,
         "zorder": 4,
     },
     {
         "key": "turbo",
         "label": "TurboMPC",
         "color": GREEN,
-        "linestyle": (0, (1.2, 1.6)),
-        "zorder": 3,
+        "linestyle": (0, (4.0, 1.5, 1.0, 1.5)),
+        "linewidth": 1.00,
+        "alpha": 0.80,
+        "zorder": 5,
     },
 ]
 
@@ -329,12 +336,14 @@ def _plot_loss(ax, model: dict, max_epoch: int, smooth_window: int) -> None:
         all_lower.append(lo)
         all_upper.append(hi)
         ax.fill_between(x, lo, hi, color=method["color"], alpha=0.12, linewidth=0.0, zorder=method["zorder"] - 2)
+        linewidth = 1.50 if model["key"] == "quadrotor" and method["key"] == "alm" else method["linewidth"]
         ax.plot(
             x,
             mean,
             color=method["color"],
             linestyle=method["linestyle"],
-            linewidth=1.75 if method["key"] != "alm" else 1.90,
+            linewidth=linewidth,
+            alpha=method["alpha"],
             zorder=method["zorder"],
             label=method["label"],
         )
@@ -349,9 +358,20 @@ def _plot_loss(ax, model: dict, max_epoch: int, smooth_window: int) -> None:
         ax.set_ylim(max(0.0, ymin - pad), ymax + pad)
     else:
         ax.set_ylim(bottom=0.0)
+    if model["key"] == "cartpole":
+        ax.set_ylim(0.0, 20.0)
+        ax.set_yticks([0, 10, 20])
+    elif model["key"] == "quadrotor":
+        ymin, _ = ax.get_ylim()
+        ax.set_ylim(ymin, 500.0)
+        ax.set_yticks([200, 300, 400, 500])
+    elif model["key"] == "robot_arm":
+        ax.set_ylim(0.0, 30.0)
+        ax.set_yticks([0, 10, 20, 30])
     ax.set_xticks([0, max_epoch // 2, max_epoch])
     ax.grid(True, color="#C6C6C6", linestyle="-", linewidth=0.45, alpha=0.42)
-    ax.tick_params(labelsize=TICK_FONTSIZE)
+    ax.set_facecolor(PANEL_FACE)
+    ax.tick_params(labelsize=TICK_FONTSIZE, top=False, right=False, length=2.0, width=0.65)
 
 
 def _plot_timing(ax, model: dict, tail_fraction: float, show_legend: bool, ymax: float | None) -> float:
@@ -417,8 +437,18 @@ def _plot_timing(ax, model: dict, tail_fraction: float, show_legend: bool, ymax:
         headroom = 1.42 if model["key"] == "cartpole" else 1.32
         ymax = (top + err) * headroom
     ax.set_ylim(0.0, ymax)
+    if model["key"] == "cartpole":
+        ax.set_ylim(0.0, 75.0)
+        ax.set_yticks([0, 25, 50, 75])
+    elif model["key"] == "quadrotor":
+        ax.set_ylim(0.0, 100.0)
+        ax.set_yticks([0, 50, 100])
+    elif model["key"] == "robot_arm":
+        ax.set_ylim(0.0, 75.0)
+        ax.set_yticks([0, 25, 50, 75])
     ax.grid(True, axis="y", color="#C6C6C6", linestyle="-", linewidth=0.45, alpha=0.42)
-    ax.tick_params(labelsize=TICK_FONTSIZE)
+    ax.set_facecolor(PANEL_FACE)
+    ax.tick_params(labelsize=TICK_FONTSIZE, top=False, right=False, length=2.0, width=0.65)
     ax.margins(y=0.24)
     if show_legend:
         ax.legend(
@@ -516,8 +546,8 @@ def main() -> None:
     parser.add_argument("--max-epoch", type=int, default=800)
     parser.add_argument("--tail-fraction", type=float, default=0.2)
     parser.add_argument("--out-dir", type=Path, default=OUT_DIR)
-    parser.add_argument("--width", type=float, default=6.75)
-    parser.add_argument("--height", type=float, default=3.05)
+    parser.add_argument("--width", type=float, default=5.5)
+    parser.add_argument("--height", type=float, default=2.49)
     parser.add_argument("--smooth-window", type=int, default=31)
     args = parser.parse_args()
 
@@ -545,34 +575,12 @@ def main() -> None:
         axes[0, i].set_ylabel("Imitation loss" if i == 0 else "", fontsize=LABEL_FONTSIZE, labelpad=1.0)
         axes[1, i].set_ylabel("Time (ms)" if i == 0 else "", fontsize=LABEL_FONTSIZE, labelpad=1.0)
 
-    available_loss_keys = {
-        method["key"]
-        for model in MODELS
-        for method in LOSS_METHODS
-        if _loss_rows(model, method["key"])
-    }
     available_timing_keys = {
         method["key"]
         for model in MODELS
         for method in METHODS
         if _read_csv(model[method["key"]])
     }
-    loss_handles = [
-        Line2D(
-            [0],
-            [0],
-            color=method["color"],
-            linestyle=method["linestyle"],
-            linewidth=1.75,
-            marker={"alm": "o", "coc": "s", "turbo": "^"}.get(method["key"], "o"),
-            markersize=3.4,
-            markerfacecolor=method["color"],
-            markeredgewidth=0.0,
-            label=method["label"],
-        )
-        for method in LOSS_METHODS
-        if method["key"] in available_loss_keys
-    ]
     timing_handles = [
         Line2D(
             [0],
@@ -591,26 +599,9 @@ def main() -> None:
         if method["key"] in available_timing_keys
     ]
     fig.legend(
-        handles=loss_handles,
-        loc="upper center",
-        bbox_to_anchor=(0.245, 0.945),
-        ncol=min(len(loss_handles), 3),
-        frameon=True,
-        fancybox=True,
-        framealpha=LEGEND_FRAME_ALPHA,
-        facecolor=LEGEND_FACE,
-        edgecolor=LEGEND_EDGE,
-        fontsize=LEGEND_FONTSIZE,
-        handlelength=1.60,
-        columnspacing=0.68,
-        handletextpad=0.44,
-        borderpad=0.28,
-        labelspacing=0.18,
-    )
-    fig.legend(
         handles=timing_handles,
         loc="upper center",
-        bbox_to_anchor=(0.715, 0.945),
+        bbox_to_anchor=(0.5, 0.925),
         ncol=min(len(timing_handles), 4),
         frameon=True,
         fancybox=True,
@@ -618,13 +609,13 @@ def main() -> None:
         facecolor=LEGEND_FACE,
         edgecolor=LEGEND_EDGE,
         fontsize=LEGEND_FONTSIZE,
-        handlelength=0.98,
-        handletextpad=0.42,
-        columnspacing=0.56,
-        borderpad=0.28,
+        handlelength=0.90,
+        handletextpad=0.48,
+        columnspacing=0.90,
+        borderpad=0.34,
         labelspacing=0.18,
     )
-    fig.subplots_adjust(left=0.068, right=0.985, top=0.860, bottom=0.145, wspace=0.22, hspace=0.40)
+    fig.subplots_adjust(left=0.068, right=0.985, top=0.819, bottom=0.171, wspace=0.22, hspace=0.40)
     for i, model in enumerate(MODELS):
         bottom = axes[1, i].get_position()
         x_center = 0.5 * (bottom.x0 + bottom.x1)

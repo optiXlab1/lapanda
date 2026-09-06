@@ -1,6 +1,6 @@
 #include "static_casadi_oracle.h"
 
-#include "LAPANDA_generated_config.h"
+#include "lapanda_generated_config.h"
 
 #include <math.h>
 #include <string.h>
@@ -381,7 +381,7 @@ static void fill_oracle(panda_oracle* oracle)
     oracle->vjp = static_vjp;
 }
 
-void LAPANDA_static_init_panda_problem(
+void lapanda_static_init_panda_problem(
     struct optimizer_problem* problem,
     const struct solver_parameters* solver_params,
     const struct backward_parameters* backward_params
@@ -398,7 +398,7 @@ void LAPANDA_static_init_panda_problem(
     problem->trace_context = 0;
 }
 
-void LAPANDA_static_init_alm_problem(
+void lapanda_static_init_alm_problem(
     alm_problem* problem,
     const real_t* constraint_lower,
     const real_t* constraint_upper,

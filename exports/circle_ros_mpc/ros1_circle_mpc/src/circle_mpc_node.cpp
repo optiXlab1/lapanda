@@ -7,7 +7,7 @@
 
 extern "C" {
 #include "static_casadi_oracle.h"
-#include "LAPANDA_generated_config.h"
+#include "lapanda_generated_config.h"
 }
 
 namespace {
@@ -33,10 +33,10 @@ public:
         , private_nh_("~")
     {
         private_nh_.param("period_sec", period_sec_, 0.05);
-        private_nh_.param("inner_max_iterations", inner_max_iterations_, 3000);
+        private_nh_.param("inner_max_iterations", inner_max_iterations_, 2000);
         private_nh_.param("inner_tolerance", inner_tolerance_, 1e-1);
         private_nh_.param("alm_max_iterations", alm_max_iterations_, 100);
-        private_nh_.param("alm_tolerance", alm_tolerance_, 2e-3);
+        private_nh_.param("alm_tolerance", alm_tolerance_, 1e-4);
         private_nh_.param("initial_penalty", initial_penalty_, 10000.0);
         private_nh_.param("penalty_update_factor", penalty_update_factor_, 10.0);
         private_nh_.param("compute_backward", compute_backward_, false);
@@ -105,11 +105,11 @@ private:
 
         backward_parameters backward{};
         backward.enable = compute_backward_ ? 1 : 0;
-        backward.tolerance = 1e-2;
+        backward.tolerance = 1e-3;
         backward.max_iterations = 200;
 
         alm_problem problem{};
-        LAPANDA_static_init_alm_problem(
+        lapanda_static_init_alm_problem(
             &problem,
             constraint_lower_.data(),
             constraint_upper_.data(),

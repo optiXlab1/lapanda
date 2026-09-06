@@ -4,13 +4,13 @@
 #include "../../alm/alm.h"
 #include "../../include/optimizer.h"
 
-void LAPANDA_static_init_panda_problem(
+void lapanda_static_init_panda_problem(
     struct optimizer_problem* problem,
     const struct solver_parameters* solver_params,
     const struct backward_parameters* backward_params
 );
 
-void LAPANDA_static_init_alm_problem(
+void lapanda_static_init_alm_problem(
     alm_problem* problem,
     const real_t* constraint_lower,
     const real_t* constraint_upper,

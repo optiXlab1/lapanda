@@ -1,5 +1,5 @@
 function solver = lapanda_create_solver(problem, project_dir, varargin)
-%LAPANDA_CREATE_SOLVER Build a dynamic lapanda MEX solver from CasADi.
+%lapanda_CREATE_SOLVER Build a dynamic lapanda MEX solver from CasADi.
 %
 % solver = lapanda_create_solver(problem, project_dir)
 % solver = lapanda_create_solver(..., 'Name', name, 'MexName', mex_name, ...)
@@ -38,6 +38,7 @@ solver.oracle_library = library_path;
 solver.meta = meta;
 solver.solve_panda = @(varargin) lapanda_solve_panda(solver, varargin{:});
 solver.solve_alm = @(varargin) lapanda_solve_alm(solver, varargin{:});
+solver.solve_lapanda = solver.solve_alm;
 end
 
 function opts = local_options(varargin)

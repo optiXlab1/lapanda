@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import argparse
 import importlib.util
+import json
+import shutil
 import stat
 import sys
 from pathlib import Path
@@ -12,6 +14,7 @@ EXP_DIR = Path(__file__).resolve().parents[1]
 REPO_ROOT = Path(__file__).resolve().parents[3]
 THIS_DIR = Path(__file__).resolve().parent
 CIRCLE_DIR = EXP_DIR / "circle"
+TEMPLATE_DIR = EXP_DIR / "deployment_templates" / "rectangle_ros_mpc"
 if str(EXP_DIR) not in sys.path:
     sys.path.insert(0, str(EXP_DIR))
 if str(REPO_ROOT / "python") not in sys.path:
@@ -40,7 +43,7 @@ MAIN_C = r'''#include "static_casadi_oracle.h"
 static void fill_problem_data(double* theta, double* variable)
 {
     const double theta_value[LAPANDA_NTHETA] = {
-        5.0, 0.2, 1e-2, 1e-2, 20.0, 0.10, 0.10, 0.10, 0.22
+        5.0, 0.2, 1e-2, 1e-2, 20.0, 0.12, 0.12, 0.01, 0.22
     };
     const double variable_value[LAPANDA_NVAR] = {
         -1.2, 0.0, 0.0, 1.2, 0.0, 0.0,
@@ -107,7 +110,7 @@ int main(void)
         &backward_params);
 
     params.max_iterations = 100;
-    params.tolerance = 1e-4;
+    params.tolerance = 1e-5;
     params.initial_penalty = 10000.0;
     params.penalty_update_factor = 10.0;
     params.max_penalty = 0.0;
@@ -202,11 +205,11 @@ public:
         private_nh_.param("inner_max_iterations", inner_max_iterations_, 2000);
         private_nh_.param("inner_tolerance", inner_tolerance_, 1e-3);
         private_nh_.param("alm_max_iterations", alm_max_iterations_, 100);
-        private_nh_.param("alm_tolerance", alm_tolerance_, 1e-4);
+        private_nh_.param("alm_tolerance", alm_tolerance_, 1e-5);
         private_nh_.param("initial_penalty", initial_penalty_, 10000.0);
         private_nh_.param("penalty_update_factor", penalty_update_factor_, 10.0);
 
-        theta_ = {5.0, 0.2, 1e-2, 1e-2, 20.0, 0.10, 0.10, 0.10, 0.22};
+        theta_ = {5.0, 0.2, 1e-2, 1e-2, 20.0, 0.12, 0.12, 0.01, 0.22};
         variable_.fill(0.0);
         variable_[0] = -1.2;
         variable_[3] = 1.2;
@@ -403,6 +406,9 @@ def patch_cmake(project_dir: Path) -> None:
 
 add_executable(rectangle_mpc_benchmark main_rectangle_benchmark.c)
 target_link_libraries(rectangle_mpc_benchmark PRIVATE lapanda_embedded)
+
+add_executable(rectangle_imitation_benchmark main_rectangle_imitation_benchmark.c)
+target_link_libraries(rectangle_imitation_benchmark PRIVATE lapanda_embedded)
 """
     if "rectangle_mpc_benchmark" not in text:
         text = text.rstrip() + addition
@@ -496,6 +502,9 @@ cmake --build "$ROOT/build" -j"$(nproc)"
 """,
         encoding="utf-8",
     )
+    content = standalone.read_text(encoding="utf-8")
+    with standalone.open("w", encoding="utf-8", newline="\n") as stream:
+        stream.write(content)
     standalone.chmod(standalone.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
 
     ros_runner = project_dir / "run_ros1_node.sh"
@@ -514,6 +523,9 @@ rosrun ros1_rectangle_mpc rectangle_mpc_node
 """,
         encoding="utf-8",
     )
+    content = ros_runner.read_text(encoding="utf-8")
+    with ros_runner.open("w", encoding="utf-8", newline="\n") as stream:
+        stream.write(content)
     ros_runner.chmod(ros_runner.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
 
 
@@ -531,10 +543,103 @@ def main() -> None:
         force=args.force,
     )
     project_dir = Path(project_dir)
+    (project_dir / "experiment_meta.json").write_text(
+        json.dumps(
+            {
+                "task": "rectangular-obstacle embedded deployment",
+                "horizon": exp3_config.RECTANGLE_HORIZON,
+                "dt": exp3_config.RECTANGLE_DT,
+                "speed_bounds": [
+                    -exp3_config.RECTANGLE_SPEED_LIMIT,
+                    exp3_config.RECTANGLE_SPEED_LIMIT,
+                ],
+                "steering_bounds_rad": [
+                    -exp3_config.RECTANGLE_STEER_LIMIT,
+                    exp3_config.RECTANGLE_STEER_LIMIT,
+                ],
+                "inner_tolerance": exp3_config.RECTANGLE_INNER_TOL,
+                "alm_tolerance": exp3_config.RECTANGLE_ALM_TOL,
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
     (project_dir / "main_rectangle_benchmark.c").write_text(MAIN_C, encoding="utf-8")
+    shutil.copy2(
+        TEMPLATE_DIR / "main_rectangle_imitation_benchmark.c",
+        project_dir / "main_rectangle_imitation_benchmark.c",
+    )
+    (project_dir / "solver_config.json").write_text(
+        json.dumps(
+            {
+                "method": "lapanda",
+                "problem": "rectangle",
+                "backend": "exported C",
+                "horizon": exp3_config.RECTANGLE_HORIZON,
+                "dynamics": "discrete bicycle",
+                "speed_bounds": [
+                    -exp3_config.RECTANGLE_SPEED_LIMIT,
+                    exp3_config.RECTANGLE_SPEED_LIMIT,
+                ],
+                "steering_bounds_rad": [
+                    -exp3_config.RECTANGLE_STEER_LIMIT,
+                    exp3_config.RECTANGLE_STEER_LIMIT,
+                ],
+                "tolerance": {
+                    "alm_tolerance": exp3_config.RECTANGLE_ALM_TOL,
+                    "inner_tolerance": exp3_config.RECTANGLE_INNER_TOL,
+                    "backward_tolerance": 1e-3,
+                },
+                "notes": (
+                    "Rectangle hard-constraint margin problem, final tolerance "
+                    "setting used for ROS/Raspberry Pi export."
+                ),
+                "standalone_entry": "rectangle_mpc_benchmark",
+                "imitation_entry": "rectangle_imitation_benchmark",
+                "training": {
+                    "epochs": exp3_config.RECTANGLE_EPOCHS,
+                    "learning_rate": exp3_config.RECTANGLE_LR,
+                    "teacher_margins": list(exp3_config.RECTANGLE_TEACHER_MARGINS),
+                    "initial_margins": list(exp3_config.RECTANGLE_INITIAL_MARGINS),
+                    "initial_guess": (
+                        "bicycle rollout with steering clipped to "
+                        f"{exp3_config.RECTANGLE_STEER_LIMIT:g} rad"
+                    ),
+                    "learn_mask": exp3_config.RECTANGLE_LEARN_MASK.split(","),
+                    "line_search_scales": [1.0, 0.5, 0.25, 0.1, 0.05, 0.01],
+                },
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
     patch_cmake(project_dir)
     write_ros1_package(project_dir)
     write_run_scripts(project_dir)
+    (project_dir / "export_manifest.json").write_text(
+        json.dumps(
+            {
+                "generator": (
+                    "experiments/exp3_embedded_export/rectangle/"
+                    "export_rectangle_ros_project.py"
+                ),
+                "template": (
+                    "deployment_templates/rectangle_ros_mpc/"
+                    "main_rectangle_imitation_benchmark.c"
+                ),
+                "files": sorted(
+                    str(path.relative_to(project_dir)).replace("\\", "/")
+                    for path in project_dir.rglob("*")
+                    if path.is_file() and path.name != "export_manifest.json"
+                ),
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
     print(project_dir)
 
 

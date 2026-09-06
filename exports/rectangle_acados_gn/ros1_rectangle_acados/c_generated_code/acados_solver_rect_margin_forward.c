@@ -447,9 +447,9 @@ void rect_margin_forward_acados_create_set_default_parameters(rect_margin_forwar
     p_global[2] = 0.01;
     p_global[3] = 0.01;
     p_global[4] = 20;
-    p_global[5] = 0.1;
-    p_global[6] = 0.1;
-    p_global[7] = 0.1;
+    p_global[5] = 0.12;
+    p_global[6] = 0.12;
+    p_global[7] = 0.01;
     p_global[8] = 0.22;
     p_global[9] = -1.2;
     p_global[12] = 1.2;
@@ -652,8 +652,8 @@ void rect_margin_forward_acados_setup_nlp_in(rect_margin_forward_solver_capsule*
     double* ubu = lubu + NBU;
     lbu[0] = -1;
     ubu[0] = 1;
-    lbu[1] = -0.4363323129985824;
-    ubu[1] = 0.4363323129985824;
+    lbu[1] = -0.7;
+    ubu[1] = 0.7;
 
     for (int i = 0; i < N; i++)
     {
@@ -757,6 +757,15 @@ static void rect_margin_forward_acados_create_set_opts(rect_margin_forward_solve
     double globalization_eps_sufficient_descent = 0.0001;
     ocp_nlp_solver_opts_set(nlp_config, capsule->nlp_opts, "globalization_eps_sufficient_descent", &globalization_eps_sufficient_descent);
 
+    int with_solution_sens_wrt_params = false;
+    ocp_nlp_solver_opts_set(nlp_config, capsule->nlp_opts, "with_solution_sens_wrt_params", &with_solution_sens_wrt_params);
+
+    int with_value_sens_wrt_params = false;
+    ocp_nlp_solver_opts_set(nlp_config, capsule->nlp_opts, "with_value_sens_wrt_params", &with_value_sens_wrt_params);
+
+    double solution_sens_qp_t_lam_min = 0.000000001;
+    ocp_nlp_solver_opts_set(nlp_config, capsule->nlp_opts, "solution_sens_qp_t_lam_min", &solution_sens_qp_t_lam_min);
+
     int globalization_full_step_dual = 0;
     ocp_nlp_solver_opts_set(nlp_config, capsule->nlp_opts, "globalization_full_step_dual", &globalization_full_step_dual);
 
@@ -803,16 +812,16 @@ static void rect_margin_forward_acados_create_set_opts(rect_margin_forward_solve
 
 
     // set SQP specific options
-    double nlp_solver_tol_stat = 0.001;
+    double nlp_solver_tol_stat = 0.00001;
     ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "tol_stat", &nlp_solver_tol_stat);
 
-    double nlp_solver_tol_eq = 0.001;
+    double nlp_solver_tol_eq = 0.00001;
     ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "tol_eq", &nlp_solver_tol_eq);
 
-    double nlp_solver_tol_ineq = 0.001;
+    double nlp_solver_tol_ineq = 0.00001;
     ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "tol_ineq", &nlp_solver_tol_ineq);
 
-    double nlp_solver_tol_comp = 0.001;
+    double nlp_solver_tol_comp = 0.00001;
     ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "tol_comp", &nlp_solver_tol_comp);
 
     int nlp_solver_max_iter = 1000;

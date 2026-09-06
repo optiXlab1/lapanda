@@ -534,15 +534,7 @@ void circle_forward_acados_setup_nlp_in(circle_forward_solver_capsule* capsule, 
         cost_scaling[9] = 0.12;
         cost_scaling[10] = 0.12;
         cost_scaling[11] = 0.12;
-        cost_scaling[12] = 0.12;
-        cost_scaling[13] = 0.12;
-        cost_scaling[14] = 0.12;
-        cost_scaling[15] = 0.12;
-        cost_scaling[16] = 0.12;
-        cost_scaling[17] = 0.12;
-        cost_scaling[18] = 0.12;
-        cost_scaling[19] = 0.12;
-        cost_scaling[20] = 1;
+        cost_scaling[12] = 1;
         for (int i = 0; i <= N; i++)
         {
             ocp_nlp_cost_model_set(nlp_config, nlp_dims, nlp_in, i, "scaling", &cost_scaling[i]);
@@ -638,8 +630,8 @@ void circle_forward_acados_setup_nlp_in(circle_forward_solver_capsule* capsule, 
     double* lubu = calloc(2*NBU, sizeof(double));
     double* lbu = lubu;
     double* ubu = lubu + NBU;
-    lbu[0] = -1;
-    ubu[0] = 1;
+    lbu[0] = -1.5;
+    ubu[0] = 1.5;
     lbu[1] = -0.4363323129985824;
     ubu[1] = 0.4363323129985824;
 
@@ -760,6 +752,15 @@ static void circle_forward_acados_create_set_opts(circle_forward_solver_capsule*
     double globalization_eps_sufficient_descent = 0.0001;
     ocp_nlp_solver_opts_set(nlp_config, capsule->nlp_opts, "globalization_eps_sufficient_descent", &globalization_eps_sufficient_descent);
 
+    int with_solution_sens_wrt_params = false;
+    ocp_nlp_solver_opts_set(nlp_config, capsule->nlp_opts, "with_solution_sens_wrt_params", &with_solution_sens_wrt_params);
+
+    int with_value_sens_wrt_params = false;
+    ocp_nlp_solver_opts_set(nlp_config, capsule->nlp_opts, "with_value_sens_wrt_params", &with_value_sens_wrt_params);
+
+    double solution_sens_qp_t_lam_min = 0.000000001;
+    ocp_nlp_solver_opts_set(nlp_config, capsule->nlp_opts, "solution_sens_qp_t_lam_min", &solution_sens_qp_t_lam_min);
+
     int globalization_full_step_dual = 0;
     ocp_nlp_solver_opts_set(nlp_config, capsule->nlp_opts, "globalization_full_step_dual", &globalization_full_step_dual);
 
@@ -767,7 +768,7 @@ static void circle_forward_acados_create_set_opts(circle_forward_solver_capsule*
     ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "levenberg_marquardt", &levenberg_marquardt);
 
     /* options QP solver */
-    int qp_solver_cond_N;const int qp_solver_cond_N_ori = 20;
+    int qp_solver_cond_N;const int qp_solver_cond_N_ori = 12;
     qp_solver_cond_N = N < qp_solver_cond_N_ori ? N : qp_solver_cond_N_ori; // use the minimum value here
     ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "qp_cond_N", &qp_solver_cond_N);
     double reg_epsilon = 0.0001;
@@ -806,7 +807,7 @@ static void circle_forward_acados_create_set_opts(circle_forward_solver_capsule*
 
 
     // set SQP specific options
-    double nlp_solver_tol_stat = 0.002;
+    double nlp_solver_tol_stat = 0.0001;
     ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "tol_stat", &nlp_solver_tol_stat);
 
     double nlp_solver_tol_eq = 0.0001;
@@ -815,7 +816,7 @@ static void circle_forward_acados_create_set_opts(circle_forward_solver_capsule*
     double nlp_solver_tol_ineq = 0.0001;
     ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "tol_ineq", &nlp_solver_tol_ineq);
 
-    double nlp_solver_tol_comp = 0.002;
+    double nlp_solver_tol_comp = 0.0001;
     ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "tol_comp", &nlp_solver_tol_comp);
 
     int nlp_solver_max_iter = 1000;

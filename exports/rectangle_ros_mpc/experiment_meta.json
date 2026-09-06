@@ -1,0 +1,15 @@
+{
+  "task": "rectangular-obstacle embedded deployment",
+  "horizon": 20,
+  "dt": 0.12,
+  "speed_bounds": [
+    -1.0,
+    1.0
+  ],
+  "steering_bounds_rad": [
+    -0.7,
+    0.7
+  ],
+  "inner_tolerance": 0.001,
+  "alm_tolerance": 1e-05
+}

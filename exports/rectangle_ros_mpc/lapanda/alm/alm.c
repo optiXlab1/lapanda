@@ -4,7 +4,6 @@
 
 #include <math.h>
 #include <stdlib.h>
-#include <stdio.h>
 #include <time.h>
 #ifdef _WIN32
 #include <windows.h>
@@ -22,11 +21,6 @@ typedef struct {
 } alm_context;
 
 static alm_context g_ctx;
-
-typedef struct {
-    FILE* fp;
-    unsigned int outer_iter;
-} alm_trace_context;
 
 #define ALM_MAX_RECORDED_INNER_ITERATIONS 1024
 
@@ -79,36 +73,6 @@ static real_t project_box(real_t x, real_t lb, real_t ub)
         return ub;
     }
     return x;
-}
-
-static void alm_inner_trace(
-    void* context,
-    unsigned int inner_iter,
-    real_t residual
-)
-{
-    alm_trace_context* trace_ctx;
-
-    trace_ctx = (alm_trace_context*)context;
-    if (trace_ctx == NULL || trace_ctx->fp == NULL) {
-        return;
-    }
-
-    fprintf(trace_ctx->fp,
-            "inner,%u,%u,%.16e,,,"
-            "%.16e,%.16e,%.16e,%.16e,%.16e,%.16e,%.16e,%u\n",
-            trace_ctx->outer_iter,
-            inner_iter,
-            (double)residual,
-            (double)panda_forward_get_gamma(),
-            (double)panda_forward_get_tau(),
-            (double)panda_forward_get_phi(),
-            (double)panda_forward_get_f_x(),
-            (double)panda_forward_get_f_z(),
-            (double)panda_forward_get_g_z(),
-            (double)panda_forward_get_residual_norm2(),
-            (unsigned int)panda_forward_get_upper_ok());
-    fflush(trace_ctx->fp);
 }
 
 static real_t alm_cost_gradient(
@@ -568,15 +532,10 @@ static int alm_solve_internal(
     int status;
     int inner_status;
     optimizer_solve_info inner_info;
-    FILE* inner_log_fp;
-    alm_trace_context trace_ctx;
 
     penalties = NULL;
     previous_residual = NULL;
     initial_solution = NULL;
-    inner_log_fp = NULL;
-    trace_ctx.fp = NULL;
-    trace_ctx.outer_iter = 0;
     g_inner_iterations_count = 0;
     free(g_last_penalties);
     g_last_penalties = NULL;
@@ -652,19 +611,6 @@ static int alm_solve_internal(
         goto fail;
     }
 
-    if (used_params.verbose != FALSE) {
-        inner_log_fp = fopen("LAPANDA_log.csv", "w");
-        if (inner_log_fp != NULL) {
-            fprintf(inner_log_fp,
-                    "event,outer_iter,inner_iter,residual,alm_violation,penalty,"
-                    "gamma,tau,phi,f_x,f_z,g_z,residual_norm2,upper_ok\n");
-            fflush(inner_log_fp);
-            trace_ctx.fp = inner_log_fp;
-            inner_problem.trace = alm_inner_trace;
-            inner_problem.trace_context = &trace_ctx;
-        }
-    }
-
     previous_violation = LARGE;
     status = FAILURE;
 
@@ -679,7 +625,6 @@ static int alm_solve_internal(
     const real_t forward_t0 = alm_now_sec();
     for (k = 0; k < used_params.max_iterations; ++k) {
         g_ctx.penalties = penalties;
-        trace_ctx.outer_iter = k + 1;
         if (used_params.warm_start_inner == FALSE && k > 0) {
             for (i = 0; i < problem->oracle.n; ++i) {
                 solution[i] = initial_solution[i];
@@ -721,26 +666,6 @@ static int alm_solve_internal(
             info->iterations = k + 1;
             info->final_residual = violation;
             info->penalty = max_penalty;
-        }
-
-        if (inner_log_fp != NULL) {
-            fprintf(inner_log_fp,
-                    "outer,%u,%u,%.16e,%.16e,%.16e,"
-                    "%.16e,%.16e,%.16e,%.16e,%.16e,%.16e,%.16e,%u\n",
-                    k + 1,
-                    inner_info.iterations,
-                    (double)inner_info.final_residual,
-                    (double)violation,
-                    (double)max_penalty,
-                    (double)panda_forward_get_gamma(),
-                    (double)panda_forward_get_tau(),
-                    (double)panda_forward_get_phi(),
-                    (double)panda_forward_get_f_x(),
-                    (double)panda_forward_get_f_z(),
-                    (double)panda_forward_get_g_z(),
-                    (double)panda_forward_get_residual_norm2(),
-                    (unsigned int)panda_forward_get_upper_ok());
-            fflush(inner_log_fp);
         }
 
         if (violation <= used_params.tolerance) {
@@ -792,9 +717,6 @@ static int alm_solve_internal(
         const real_t backward_t0 = alm_now_sec();
         if (solve_backward(solution, dLdtheta) == FAILURE) {
             optimizer_cleanup();
-            if (inner_log_fp != NULL) {
-                fclose(inner_log_fp);
-            }
             clear_context();
             free(penalties);
             free(previous_residual);
@@ -810,9 +732,6 @@ static int alm_solve_internal(
     }
 
     optimizer_cleanup();
-    if (inner_log_fp != NULL) {
-        fclose(inner_log_fp);
-    }
     clear_context();
     free(penalties);
     free(previous_residual);
@@ -820,9 +739,6 @@ static int alm_solve_internal(
     return status;
 
 fail:
-    if (inner_log_fp != NULL) {
-        fclose(inner_log_fp);
-    }
     clear_context();
     free(penalties);
     free(previous_residual);

@@ -1,5 +1,5 @@
 #include "static_casadi_oracle.h"
-#include "LAPANDA_generated_config.h"
+#include "lapanda_generated_config.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -42,7 +42,7 @@ int main(void)
             constraint_upper[i] = 0.0;
         }
 
-        LAPANDA_static_init_alm_problem(
+        lapanda_static_init_alm_problem(
             &problem,
             constraint_lower,
             constraint_upper,
@@ -65,7 +65,7 @@ int main(void)
         struct optimizer_problem problem;
         optimizer_solve_info info;
 
-        LAPANDA_static_init_panda_problem(&problem, &solver_params, &backward_params);
+        lapanda_static_init_panda_problem(&problem, &solver_params, &backward_params);
         (void)optimizer_init(&problem);
         (void)solve_problem(solution, theta, variable);
         (void)optimizer_get_forward_info(&info);

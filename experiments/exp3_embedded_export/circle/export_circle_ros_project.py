@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import argparse
 import importlib.util
+import json
+import stat
 import sys
 from pathlib import Path
 
@@ -499,6 +501,45 @@ def parse_args():
     return parser.parse_args()
 
 
+def write_run_scripts(project_dir: Path) -> None:
+    standalone = project_dir / "run_standalone.sh"
+    standalone.write_text(
+        """#!/usr/bin/env bash
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+cmake -S "$ROOT" -B "$ROOT/build" -DCMAKE_BUILD_TYPE=Release
+cmake --build "$ROOT/build" -j"$(nproc)"
+"$ROOT/build/circle_mpc_benchmark"
+""",
+        encoding="utf-8",
+    )
+    ros_runner = project_dir / "run_ros1_node.sh"
+    ros_runner.write_text(
+        """#!/usr/bin/env bash
+set -euo pipefail
+: "${ROS_DISTRO:=noetic}"
+source "/opt/ros/${ROS_DISTRO}/setup.bash"
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+WS="$ROOT/_catkin_ws"
+mkdir -p "$WS/src"
+ln -sfn "$ROOT/ros1_circle_mpc" "$WS/src/ros1_circle_mpc"
+catkin_make -C "$WS"
+source "$WS/devel/setup.bash"
+extra_args=()
+if [ -n "${ALM_TOL:-}" ]; then
+  extra_args+=("_alm_tolerance:=${ALM_TOL}")
+fi
+rosrun ros1_circle_mpc circle_mpc_node "${extra_args[@]}"
+""",
+        encoding="utf-8",
+    )
+    for script in (standalone, ros_runner):
+        content = script.read_text(encoding="utf-8")
+        with script.open("w", encoding="utf-8", newline="\n") as stream:
+            stream.write(content)
+        script.chmod(script.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+
+
 def main() -> None:
     args = parse_args()
     case = build_circle_case(args.horizon, args.speed_limit)
@@ -512,6 +553,25 @@ def main() -> None:
     (outdir / "main_circle_benchmark.c").write_text(MAIN_C, encoding="utf-8")
     patch_cmake(outdir)
     write_ros1_package(outdir)
+    write_run_scripts(outdir)
+    (outdir / "export_manifest.json").write_text(
+        json.dumps(
+            {
+                "generator": (
+                    "experiments/exp3_embedded_export/circle/"
+                    "export_circle_ros_project.py"
+                ),
+                "files": sorted(
+                    str(path.relative_to(outdir)).replace("\\", "/")
+                    for path in outdir.rglob("*")
+                    if path.is_file() and path.name != "export_manifest.json"
+                ),
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
     print(outdir)
 
 

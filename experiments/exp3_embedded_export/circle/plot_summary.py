@@ -9,6 +9,7 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.ticker import FixedLocator
 
 EXP_DIR = Path(__file__).resolve().parents[1]
 if str(EXP_DIR) not in sys.path:
@@ -32,23 +33,24 @@ metrics = _circle_impl.metrics
 rollout = _circle_impl.rollout
 
 
-BLUE = "#0000FF"
-RED = "#FF0000"
+BLUE = "#1F77B4"
+RED = "#D62728"
 ORANGE = "#B37A2C"
-GREEN = "#00FF00"
+GREEN = "#00A83B"
 SAFE_FILL = "#00FF00"
 VIOLATION_FILL = RED
 GRID = "#D7D9E0"
 INK = "#1F2430"
-LEGEND_FACE = "#F2F3F5"
-LEGEND_EDGE = "#C9CDD6"
-LEGEND_FRAME_ALPHA = 0.98
-ICLR_TEXT_WIDTH_IN = 6.75
-PANEL_BOX_ASPECT = 0.46
-TICK_FONTSIZE = 8.0
-LABEL_FONTSIZE = 8.0
-LEGEND_FONTSIZE = 6.2
-PANEL_LABEL_FONTSIZE = 11.0
+PANEL_FACE = "#F3F3F3"
+LEGEND_FACE = "#FFFFFF"
+LEGEND_EDGE = "#D3D6DE"
+LEGEND_FRAME_ALPHA = 0.96
+ICLR_TEXT_WIDTH_IN = 5.5
+PANEL_BOX_ASPECT = 1.2 / 2.6
+TICK_FONTSIZE = 7.0
+LABEL_FONTSIZE = 7.0
+LEGEND_FONTSIZE = 7.0
+PANEL_LABEL_FONTSIZE = 8.0
 
 
 def load_u(path: Path) -> np.ndarray:
@@ -72,9 +74,33 @@ def connect_start(traj: np.ndarray, case) -> np.ndarray:
     return np.vstack([start, traj])
 
 
+def connect_goal_for_plot(traj: np.ndarray, case) -> np.ndarray:
+    """Connect the displayed trajectory to the target without changing solver data."""
+    traj = np.asarray(traj, dtype=float)
+    if traj.size == 0:
+        return traj
+    goal = np.asarray(case.variable[3:6], dtype=float)
+    if np.linalg.norm(traj[-1, :2] - goal[:2]) < 1e-10:
+        return traj
+    return np.vstack([traj, goal])
+
+
 def style_axis(ax):
-    ax.grid(True, color="#E6E8F0", linestyle="-", linewidth=0.42, alpha=0.70)
-    ax.tick_params(axis="both", labelsize=TICK_FONTSIZE, length=2.4, width=0.68, pad=1.3)
+    ax.set_facecolor(PANEL_FACE)
+    ax.grid(True, color="#C6C6C6", linestyle="-", linewidth=0.45, alpha=0.42)
+    ax.tick_params(
+        axis="both",
+        labelsize=TICK_FONTSIZE,
+        top=False,
+        right=False,
+        bottom=True,
+        left=True,
+        direction="out",
+        length=1.8,
+        width=0.60,
+        color="#20232A",
+        pad=1.3,
+    )
     ax.xaxis.labelpad = 1.8
     ax.yaxis.labelpad = 1.8
     for spine in ax.spines.values():
@@ -92,54 +118,69 @@ def save_paper_style_figure(outdir: Path, case, series: list[tuple[str, np.ndarr
             "ps.fonttype": 42,
         }
     )
-    fig, axes = plt.subplots(1, 2, figsize=(ICLR_TEXT_WIDTH_IN, 2.18), dpi=300)
+    fig, axes = plt.subplots(
+        1,
+        2,
+        figsize=(ICLR_TEXT_WIDTH_IN, 2.5),
+        dpi=300,
+        gridspec_kw={"width_ratios": [0.65, 0.35]},
+    )
     ax = axes[0]
     center = np.asarray(case.meta["obstacle"], dtype=float)
     radius = float(case.theta[5])
     obstacle = plt.Circle(
         tuple(center),
         radius,
-        facecolor="#E6E6E6",
+        facecolor="#FFFFFF",
         edgecolor="none",
-        alpha=0.70,
+        alpha=1.0,
         label="_nolegend_",
-        zorder=0,
+        zorder=4,
     )
     ax.add_patch(obstacle)
     theta = np.linspace(0, 2 * np.pi, 240)
     ax.plot(
         center[0] + radius * np.cos(theta),
         center[1] + radius * np.sin(theta),
-        color=ORANGE,
-        lw=1.15,
+        color=GREEN,
+        lw=1.20,
         label="_nolegend_",
         zorder=5,
     )
+    ax.scatter(
+        [center[0]],
+        [center[1]],
+        marker="+",
+        color=GREEN,
+        s=25,
+        linewidths=1.20,
+        label="_nolegend_",
+        zorder=6,
+    )
     for label, u, color, style in series:
         traj = connect_start(rollout(u, case.variable, case.dt), case)
-        marker = "x" if label == "acados" else "o"
+        traj = connect_goal_for_plot(traj, case)
         zorder = 15 if style != "-" else 12
         ax.plot(
             traj[:, 0],
             traj[:, 1],
             color=color,
             linestyle=style,
-            lw=1.02 if style != "-" else 1.12,
-            marker=marker,
-            markersize=2.0,
-            markevery=2,
+            lw=1.50 if label == "lapanda" else 1.00,
             label=label,
             zorder=zorder,
         )
-    ax.scatter([case.variable[0]], [case.variable[1]], color=GREEN, marker="^", s=18, label="Start", zorder=16)
-    ax.scatter([case.variable[3]], [case.variable[4]], color=RED, marker="*", s=25, label="Target", zorder=17)
+    ax.scatter([case.variable[0]], [case.variable[1]], color="black", marker="^", s=18, label="_nolegend_", zorder=16)
+    ax.scatter([case.variable[3]], [case.variable[4]], color="black", marker="*", s=25, label="_nolegend_", zorder=17)
     ax.set_xlabel("x position", fontsize=LABEL_FONTSIZE)
     ax.set_ylabel("y position", fontsize=LABEL_FONTSIZE)
     ax.set_aspect("equal", adjustable="box")
-    ax.set_xlim(-1.35, 1.35)
-    ax.set_ylim(-0.24, 0.92)
-    ax.set_box_aspect(PANEL_BOX_ASPECT)
+    ax.set_xlim(-1.40, 1.40)
+    ax.set_ylim(-0.20, 0.60)
+    ax.set_box_aspect(0.80 / 2.80)
     style_axis(ax)
+    ax.xaxis.set_major_locator(FixedLocator([-1.40, -0.70, 0.00, 0.70, 1.40]))
+    ax.yaxis.set_major_locator(FixedLocator([-0.20, 0.00, 0.20, 0.40, 0.60]))
     legend = ax.legend(
         loc="upper right",
         fontsize=LEGEND_FONTSIZE,
@@ -148,10 +189,10 @@ def save_paper_style_figure(outdir: Path, case, series: list[tuple[str, np.ndarr
         framealpha=LEGEND_FRAME_ALPHA,
         facecolor=LEGEND_FACE,
         edgecolor=LEGEND_EDGE,
-        borderpad=0.26,
-        labelspacing=0.18,
-        handlelength=1.55,
-        handletextpad=0.42,
+        borderpad=0.30,
+        labelspacing=0.22,
+        handlelength=1.70,
+        handletextpad=0.48,
     )
     legend.get_frame().set_linewidth(0.50)
     legend.get_frame().set_facecolor(LEGEND_FACE)
@@ -162,52 +203,52 @@ def save_paper_style_figure(outdir: Path, case, series: list[tuple[str, np.ndarr
     clearance_values = [obstacle_clearance(case, u) for _, u, _, _ in series]
     max_len = max((values.size for values in clearance_values), default=case.horizon)
     k = np.arange(max_len)
-    ymax = max(0.9, max(float(np.max(values)) for values in clearance_values) + 0.06)
-    ymin = min(-0.03, min(float(np.min(values)) for values in clearance_values) - 0.02)
-    ax.axhspan(0.0, ymax, color=SAFE_FILL, alpha=0.08, label="Safe region", zorder=0)
-    ax.axhspan(ymin, 0.0, color=VIOLATION_FILL, alpha=0.08, label="Violation region", zorder=0)
-    ax.axhline(0.0, color=ORANGE, linestyle=(0, (4.0, 2.0)), lw=1.0, label="_nolegend_", zorder=8)
+    ymax = 1.25
+    ymin = -0.25
+    ax.axhspan(0.0, ymax, color=SAFE_FILL, alpha=0.035, label="Safe region", zorder=0)
+    ax.axhspan(ymin, 0.0, color=VIOLATION_FILL, alpha=0.050, label="Violation region", zorder=0)
+    ax.axhline(0.0, color="#7A7A7A", linestyle=(0, (3.0, 2.0)), lw=0.65, label="_nolegend_", zorder=2)
     for label, u, color, style in series:
         clearance = obstacle_clearance(case, u)
-        marker = "x" if label == "acados" else "o"
         zorder = 15 if style != "-" else 12
         ax.plot(
             np.arange(clearance.size),
             clearance,
             color=color,
             linestyle=style,
-            lw=1.02 if style != "-" else 1.12,
-            marker=marker,
-            markersize=2.0,
-            markevery=2,
+            lw=1.50 if label == "lapanda" else 1.00,
             label=label,
             zorder=zorder,
         )
     ax.set_xlabel("Horizon step", fontsize=LABEL_FONTSIZE)
     ax.set_ylabel("Clearance", fontsize=LABEL_FONTSIZE)
-    ax.set_xlim(0, max(max_len - 1, 1) + 0.35)
+    ax.set_xlim(0, 12)
     ax.set_ylim(ymin, ymax)
-    ax.set_box_aspect(PANEL_BOX_ASPECT)
+    ax.set_box_aspect((0.65 / 0.35) * (0.80 / 2.80))
     style_axis(ax)
+    ax.xaxis.set_major_locator(FixedLocator([0, 3, 6, 9, 12]))
+    ax.yaxis.set_major_locator(FixedLocator([-0.25, 0.25, 0.75, 1.25]))
     legend = ax.legend(
-        loc="upper right",
+        loc="upper center",
+        ncol=2,
         fontsize=LEGEND_FONTSIZE,
         frameon=True,
         fancybox=True,
         framealpha=LEGEND_FRAME_ALPHA,
         facecolor=LEGEND_FACE,
         edgecolor=LEGEND_EDGE,
-        borderpad=0.26,
-        labelspacing=0.18,
-        handlelength=1.55,
-        handletextpad=0.42,
+        borderpad=0.30,
+        labelspacing=0.22,
+        columnspacing=0.85,
+        handlelength=1.45,
+        handletextpad=0.48,
     )
     legend.get_frame().set_linewidth(0.50)
     legend.get_frame().set_facecolor(LEGEND_FACE)
     legend.get_frame().set_alpha(LEGEND_FRAME_ALPHA)
     ax.text(0.5, -0.36, "(b) Obstacle clearance", transform=ax.transAxes, ha="center", va="top", fontsize=PANEL_LABEL_FONTSIZE, fontfamily="Times New Roman", color=INK)
 
-    fig.subplots_adjust(left=0.070, right=0.994, top=0.955, bottom=0.350, wspace=0.24)
+    fig.subplots_adjust(left=0.070, right=0.994, top=0.955, bottom=0.350, wspace=0.18)
     for suffix in ("png", "pdf", "svg"):
         fig.savefig(outdir / f"circle_obstacle_solution.{suffix}", dpi=300 if suffix == "png" else None)
     plt.close(fig)
@@ -237,7 +278,7 @@ def main():
 
     series = [
         ("initial", initial_u, "#777777", "--"),
-        ("lapanda", alm_u, BLUE, "-"),
+        ("lapanda", alm_u, RED, "-"),
     ]
     acados_solution = exp / acados_dir / "acados_circle_solution.csv"
     if acados_solution.exists():
@@ -247,7 +288,7 @@ def main():
         if result_json.exists():
             with result_json.open("r", encoding="utf-8") as f:
                 json.load(f)
-        series.append((acados_label, acados_u, RED, "--"))
+        series.append((acados_label, acados_u, BLUE, "--"))
 
     save_paper_style_figure(outdir, case, series[1:])
 

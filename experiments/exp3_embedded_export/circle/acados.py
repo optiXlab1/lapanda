@@ -179,7 +179,9 @@ def main():
     qp_solver = os.environ.get("ACADOS_CIRCLE_QP_SOLVER", "PARTIAL_CONDENSING_HPIPM")
     globalization = os.environ.get("ACADOS_CIRCLE_GLOBALIZATION", "MERIT_BACKTRACKING")
     slack_weight = float(os.environ.get("ACADOS_CIRCLE_SLACK_WEIGHT", "0"))
-    nlp_tol = float(os.environ.get("ACADOS_CIRCLE_TOL", "1e-4"))
+    nlp_tol = float(
+        os.environ.get("ACADOS_CIRCLE_TOL", str(exp3_config.CIRCLE_ACADOS_TOL))
+    )
     nlp_tol_stat = float(os.environ.get("ACADOS_CIRCLE_TOL_STAT", str(nlp_tol)))
     nlp_tol_eq = float(os.environ.get("ACADOS_CIRCLE_TOL_EQ", str(nlp_tol)))
     nlp_tol_ineq = float(os.environ.get("ACADOS_CIRCLE_TOL_INEQ", str(nlp_tol)))

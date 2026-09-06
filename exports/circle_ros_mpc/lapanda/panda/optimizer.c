@@ -4,7 +4,6 @@
 
 #include <math.h>
 #include <stdlib.h>
-#include <stdio.h>
 
 #include "../include/optimizer.h"
 
@@ -16,8 +15,6 @@ static optimizer_solve_info g_backward_info;
 
 static void save_solution(real_t* solution);
 static void save_gamma(real_t t_gamma);
-static void log_residual(FILE* fp, unsigned int iter, real_t residual);
-
 int solve_problem(
     real_t* solution,
     const real_t* theta,
@@ -27,7 +24,6 @@ int solve_problem(
     unsigned int i_panda;
     real_t current_residual;
     int status;
-    FILE* residual_fp = NULL;
 
     if (initialized == FALSE) {
         return FAILURE;
@@ -38,20 +34,8 @@ int solve_problem(
 
     function_evaluator_set_parameters(theta, variable);
 
-    if (problem->trace == NULL && problem->solver_params.verbose != FALSE) {
-        residual_fp = fopen("panda_log.csv", "w");
-        if (residual_fp != NULL) {
-            fprintf(residual_fp,
-                    "iteration,residual,gamma,tau,phi,f_x,f_z,g_z,residual_norm2,upper_ok\n");
-            fflush(residual_fp);
-        }
-    }
-
     status = panda_forward_set_initial(solution);
     if (status == FAILURE) {
-        if (residual_fp != NULL) {
-            fclose(residual_fp);
-        }
         return FAILURE;
     }
 
@@ -66,17 +50,11 @@ int solve_problem(
 
         if (problem->trace != NULL) {
             problem->trace(problem->trace_context, i_panda, current_residual);
-        } else {
-            log_residual(residual_fp, i_panda, current_residual);
         }
 
         if (current_residual > MACHINE_ACCURACY) {
             save_solution(solution);
         }
-    }
-
-    if (residual_fp != NULL) {
-        fclose(residual_fp);
     }
 
     save_gamma(panda_forward_get_gamma());
@@ -145,25 +123,6 @@ int optimizer_init(struct optimizer_problem* problem_)
 
     initialized = TRUE;
     return SUCCESS;
-}
-
-static void log_residual(FILE* fp, unsigned int iter, real_t residual)
-{
-    if (fp != NULL) {
-        fprintf(fp,
-                "%u,%.16e,%.16e,%.16e,%.16e,%.16e,%.16e,%.16e,%.16e,%u\n",
-                iter,
-                (double)residual,
-                (double)panda_forward_get_gamma(),
-                (double)panda_forward_get_tau(),
-                (double)panda_forward_get_phi(),
-                (double)panda_forward_get_f_x(),
-                (double)panda_forward_get_f_z(),
-                (double)panda_forward_get_g_z(),
-                (double)panda_forward_get_residual_norm2(),
-                (unsigned int)panda_forward_get_upper_ok());
-        fflush(fp);
-    }
 }
 
 int optimizer_init_with_custom_constraint(struct optimizer_problem* problem_,

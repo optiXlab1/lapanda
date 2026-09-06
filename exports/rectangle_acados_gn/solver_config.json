@@ -5,9 +5,17 @@
   "hessian": "GAUSS_NEWTON",
   "horizon": 20,
   "dynamics": "discrete bicycle",
+  "speed_bounds": [
+    -1.0,
+    1.0
+  ],
+  "steering_bounds_rad": [
+    -0.7,
+    0.7
+  ],
   "tolerance": {
-    "nlp_tol_reference": 0.001
+    "nlp_tol_reference": 1e-05
   },
   "expected_status": 2,
-  "notes": "Rectangle GN hard-constraint baseline is expected to fail/run to max SQP iterations on the current problem."
+  "notes": "The hard-constraint Gauss--Newton baseline is expected to reach the SQP iteration limit on the current rectangular problem."
 }

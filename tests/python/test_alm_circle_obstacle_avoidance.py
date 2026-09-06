@@ -13,7 +13,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 
-def _build_circle_obstacle_problem(horizon=30, dt=0.12):
+def _build_circle_obstacle_problem(horizon=50, dt=0.12):
     nu = 2
     n = horizon * nu
     u = ca.SX.sym("u", n)
