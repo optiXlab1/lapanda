@@ -14,7 +14,7 @@ utilities, and the paper experiments. The Python distribution and import name
 are both `lapanda`.
 
 <p align="center">
-  <img src="docs/assets/lapanda_software_architecture.png" alt="lapanda software architecture and multi-platform workflow" width="900">
+  <img src="docs/assets/lapanda_software.svg" alt="lapanda software architecture and multi-platform workflow" width="900">
 </p>
 
 <p align="center"><em>Software architecture and multi-platform workflow.</em></p>
