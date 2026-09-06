@@ -336,7 +336,7 @@ def _plot_loss(ax, model: dict, max_epoch: int, smooth_window: int) -> None:
         all_lower.append(lo)
         all_upper.append(hi)
         ax.fill_between(x, lo, hi, color=method["color"], alpha=0.12, linewidth=0.0, zorder=method["zorder"] - 2)
-        linewidth = 1.50 if model["key"] == "quadrotor" and method["key"] == "alm" else method["linewidth"]
+        linewidth = method["linewidth"]
         ax.plot(
             x,
             mean,

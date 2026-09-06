@@ -30,7 +30,7 @@ LEGEND_FONTSIZE = 7.0
 
 METHODS = (
     ("lapanda", RED, "o", "-", 1.20),
-    ("TurboMPC-GPU", PURPLE, "s", "--", 1.00),
+    ("TurboMPC-GPU", PURPLE, "s", "-", 1.00),
 )
 
 

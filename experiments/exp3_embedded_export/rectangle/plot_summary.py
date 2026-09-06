@@ -59,6 +59,7 @@ PANEL_FACE = "#F3F3F3"
 TARGET_COLOR = BLACK
 TARGET_ALPHA = 0.75
 TARGET_DASH = (0, (0.55, 2.35))
+FIG6_TARGET_DASH = (0, (1.5, 2.0))
 TARGET_LINEWIDTH = 1.00
 GRID = "#E6E8F0"
 INK = "#1F2430"
@@ -124,7 +125,7 @@ def draw_base_rect(ax, bounds, label="rectangle"):
         label,
         GREEN,
         linestyle="-",
-        linewidth=1.60,
+        linewidth=1.50,
         zorder=8,
     )
     ax.scatter(
@@ -132,8 +133,8 @@ def draw_base_rect(ax, bounds, label="rectangle"):
         [0.5 * (ymin + ymax)],
         marker="+",
         color=GREEN,
-        s=25,
-        linewidths=1.80,
+        s=10,
+        linewidths=1.50,
         zorder=9,
     )
 
@@ -327,29 +328,30 @@ def plot_publication_1x3(training_csv: Path, outdir: Path, info: dict, args) -> 
     style_axis(ax)
 
     ax = axes[1]
-    teacher_style = TARGET_DASH
+    teacher_style = FIG6_TARGET_DASH
     initial_style = "-"
     learned_style = "-"
+    initial_bounds = rect_bounds(info["initial_margins"])
     draw_base_rect(ax, plot_base_rect(), "_nolegend_")
-    draw_rect(ax, rect_bounds(info["initial_margins"]), "_nolegend_", BLUE, "--", linewidth=0.80, zorder=8)
-    draw_rect(ax, rect_bounds(info["final_margins"]), "_nolegend_", RED, "--", linewidth=0.80, zorder=10)
+    draw_rect(ax, initial_bounds, "_nolegend_", BLUE, "--", linewidth=0.85, zorder=8)
+    draw_rect(ax, rect_bounds(info["final_margins"]), "_nolegend_", RED, "--", linewidth=0.85, zorder=10)
     ax.plot(
         teacher_traj[:, 0],
         teacher_traj[:, 1],
         color=TARGET_COLOR,
         linestyle=teacher_style,
-        linewidth=TARGET_LINEWIDTH,
+        linewidth=0.85,
         alpha=TARGET_ALPHA,
         label="target",
         zorder=13,
-        dash_capstyle="round",
+        dash_capstyle="butt",
     )
     ax.plot(
         initial_traj[:, 0],
         initial_traj[:, 1],
         color=BLUE,
         linestyle=initial_style,
-        linewidth=1.00,
+        linewidth=0.85,
         label="initial",
         zorder=10,
     )
@@ -358,7 +360,7 @@ def plot_publication_1x3(training_csv: Path, outdir: Path, info: dict, args) -> 
         final_traj[:, 1],
         color=RED,
         linestyle=learned_style,
-        linewidth=1.20,
+        linewidth=0.85,
         label="learned",
         zorder=12,
     )
@@ -431,7 +433,7 @@ def plot_publication_1x3(training_csv: Path, outdir: Path, info: dict, args) -> 
         alpha=TARGET_ALPHA,
         label="target",
         zorder=13,
-        dash_capstyle="round",
+        dash_capstyle="butt",
     )
     ax.plot(
         stages,
@@ -447,7 +449,7 @@ def plot_publication_1x3(training_csv: Path, outdir: Path, info: dict, args) -> 
         final_u[1::2],
         color=RED,
         linestyle=learned_style,
-        linewidth=1.20,
+        linewidth=1.00,
         label="learned",
         zorder=12,
     )

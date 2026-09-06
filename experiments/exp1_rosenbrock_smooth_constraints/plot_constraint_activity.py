@@ -83,11 +83,12 @@ def main() -> None:
     lower = max(0.90, y_min - 0.015)
     upper = 1.02
     ax.set_ylim(lower, upper)
-    ax.fill_between(idx, lower, 1.0, color="#00FF00", alpha=0.08, label="Safe region", zorder=0)
-    ax.fill_between(idx, 1.0, upper, color="#FF0000", alpha=0.08, label="Violation region", zorder=0)
+    ax.set_facecolor("#F3F3F3")
+    ax.fill_between(idx, lower, 1.0, color="#00FF00", alpha=0.035, label="Safe region", zorder=0)
+    ax.fill_between(idx, 1.0, upper, color="#D62728", alpha=0.050, label="Violation region", zorder=0)
     ax.axhline(1.0, color="#7A7A7A", linestyle=(0, (3.0, 2.0)), linewidth=0.65, zorder=2)
 
-    ax.plot(idx, alm_ratio, "-", label="lapanda", color=color_alm, linewidth=1.50, zorder=3)
+    ax.plot(idx, alm_ratio, "-", label="lapanda", color=color_alm, linewidth=1.20, zorder=3)
     ax.plot(
         idx,
         reference_ratio,

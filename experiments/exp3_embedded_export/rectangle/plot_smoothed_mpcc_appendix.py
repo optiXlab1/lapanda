@@ -25,6 +25,7 @@ BLUE = "#1F77B4"
 RED = "#D62728"
 GREEN = "#2CA02C"
 LIGHT_GREEN = "#7FBF7B"
+SECONDARY_DASH = (0, (3.2, 4.8))
 GRAY = "#707070"
 GRID = "#D8DCE3"
 PANEL_FACE = "#F3F3F3"
@@ -147,7 +148,7 @@ def main() -> None:
         vertices[:, 1],
         facecolor="none",
         edgecolor=LIGHT_GREEN,
-        linewidth=1.00,
+        linewidth=0.85,
         alpha=1.0,
         zorder=1,
     )
@@ -159,7 +160,7 @@ def main() -> None:
             ymax - ymin,
             fill=False,
             edgecolor=GREEN,
-            linewidth=0.80,
+            linewidth=0.85,
             linestyle=(0, (3.2, 2.2)),
             zorder=2,
         )
@@ -172,9 +173,9 @@ def main() -> None:
             (bxmin, bymin),
             bxmax - bxmin,
             bymax - bymin,
-            facecolor="white",
+            facecolor="#FFFFFF",
             edgecolor=GREEN,
-            linewidth=1.60,
+            linewidth=1.80,
             zorder=3,
         )
     )
@@ -183,8 +184,8 @@ def main() -> None:
         [0.5 * (bymin + bymax)],
         marker="+",
         color=GREEN,
-        s=25,
-        linewidths=1.20,
+        s=15,
+        linewidths=1.80,
         zorder=4,
     )
 
@@ -192,15 +193,16 @@ def main() -> None:
         lapanda_states[:, 0],
         lapanda_states[:, 1],
         color=RED,
-        linewidth=1.50,
+        linewidth=0.85,
         zorder=7,
     )
     trajectory_axis.plot(
         acados_states[:, 0],
         acados_states[:, 1],
         color=BLUE,
-        linewidth=1.00,
-        linestyle=(0, (4.5, 2.0)),
+        linewidth=0.85,
+        linestyle=SECONDARY_DASH,
+        dash_capstyle="round",
         zorder=8,
     )
     trajectory_axis.scatter([-1.2], [0.0], marker="^", s=23, color="black", zorder=9)
@@ -215,8 +217,8 @@ def main() -> None:
     style_axis(trajectory_axis)
     trajectory_legend = trajectory_axis.legend(
         handles=[
-            Line2D([0], [0], color=RED, linewidth=1.50, label="lapanda"),
-            Line2D([0], [0], color=BLUE, linewidth=1.00, linestyle=(0, (4.5, 2.0)), label="acados"),
+            Line2D([0], [0], color=RED, linewidth=0.85, label="lapanda"),
+            Line2D([0], [0], color=BLUE, linewidth=0.85, linestyle=SECONDARY_DASH, dash_capstyle="round", label="acados"),
         ],
         loc="upper right",
         fontsize=LEGEND_FONTSIZE,
@@ -238,7 +240,7 @@ def main() -> None:
         lapanda_steps,
         lapanda_total,
         color=RED,
-        linewidth=1.50,
+        linewidth=1.00,
         marker="o",
         markersize=2.0,
         label="lapanda",
@@ -249,7 +251,8 @@ def main() -> None:
         acados_total,
         color=BLUE,
         linewidth=1.00,
-        linestyle="--",
+        linestyle=SECONDARY_DASH,
+        dash_capstyle="round",
         marker="s",
         markersize=2.0,
         label="acados",

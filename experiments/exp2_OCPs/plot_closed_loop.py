@@ -107,7 +107,7 @@ LOSS_STYLES = [
         "label": "lapanda",
         "color": COLORS["alm"],
         "linestyle": "-",
-        "linewidth": 1.50,
+        "linewidth": 1.20,
         "marker": None,
         "markersize": 0.0,
         "markevery": None,
@@ -129,6 +129,7 @@ CARTPOLE_ENERGY_BUDGET = 70.0
 TARGET_COLOR = "#D52627"
 TARGET_ALPHA = 0.85
 TARGET_DASH = (0, (0.55, 2.35))
+FIG4_TARGET_DASH = (0, (1.4, 1.4))
 BOUNDARY_DASH = (0, (3.3, 1.8))
 FIXED_BOUNDARY_COLOR = "#000000"
 CONSTRAINT_HISTORY_COLOR = "#6F98E6"
@@ -1228,8 +1229,8 @@ def constraint_epoch_handles():
     from matplotlib.lines import Line2D
 
     return [
-        Line2D([0], [0], color=CONSTRAINT_HISTORY_CMAP(0.05), linewidth=1.50, alpha=0.70, label="epoch: 0"),
-        Line2D([0], [0], color=CONSTRAINT_FINAL_COLOR, linewidth=1.20, label=f"epoch: {TRAINING_EPOCHS}"),
+        Line2D([0], [0], color=CONSTRAINT_HISTORY_CMAP(0.05), linewidth=1.00, alpha=0.70, label="epoch: 0"),
+        Line2D([0], [0], color=CONSTRAINT_FINAL_COLOR, linewidth=1.00, label=f"epoch: {TRAINING_EPOCHS}"),
     ]
 
 
@@ -1253,7 +1254,15 @@ def _snapshot_theta(snapshot: dict, instance) -> np.ndarray:
     return theta
 
 
-def _cartpole_constraint_axes(fig, subgs, rollouts_by_epoch: dict[int, dict], instance, target_series=None) -> None:
+def _cartpole_constraint_axes(
+    fig,
+    subgs,
+    rollouts_by_epoch: dict[int, dict],
+    instance,
+    target_series=None,
+    target_dash=TARGET_DASH,
+    target_dash_capstyle="round",
+) -> None:
     epochs = [epoch for epoch in CONSTRAINT_EPOCHS if epoch in rollouts_by_epoch]
 
     ax_e = fig.add_subplot(subgs)
@@ -1267,12 +1276,12 @@ def _cartpole_constraint_axes(fig, subgs, rollouts_by_epoch: dict[int, dict], in
             x_target,
             target_series,
             color=TARGET_COLOR,
-            linestyle=TARGET_DASH,
-            linewidth=1.00,
+            linestyle=target_dash,
+            linewidth=1.20,
             alpha=TARGET_ALPHA,
             label="target",
             zorder=20,
-            dash_capstyle="round",
+            dash_capstyle=target_dash_capstyle,
         )
     for epoch in epochs:
         energy = np.asarray(rollouts_by_epoch[epoch]["predicted_energy"], dtype=float).reshape(-1)
@@ -1288,7 +1297,15 @@ def _cartpole_constraint_axes(fig, subgs, rollouts_by_epoch: dict[int, dict], in
     return [ax_e]
 
 
-def _quadrotor_constraint_axes(fig, subgs, rollouts_by_epoch: dict[int, dict], instance, target_series=None) -> None:
+def _quadrotor_constraint_axes(
+    fig,
+    subgs,
+    rollouts_by_epoch: dict[int, dict],
+    instance,
+    target_series=None,
+    target_dash=TARGET_DASH,
+    target_dash_capstyle="round",
+) -> None:
     epochs = [epoch for epoch in CONSTRAINT_EPOCHS if epoch in rollouts_by_epoch]
 
     ax_z = fig.add_subplot(subgs)
@@ -1316,12 +1333,12 @@ def _quadrotor_constraint_axes(fig, subgs, rollouts_by_epoch: dict[int, dict], i
             x_target,
             target_series,
             color=TARGET_COLOR,
-            linestyle=TARGET_DASH,
-            linewidth=1.00,
+            linestyle=target_dash,
+            linewidth=1.20,
             alpha=TARGET_ALPHA,
             label="target",
             zorder=20,
-            dash_capstyle="round",
+            dash_capstyle=target_dash_capstyle,
         )
     for epoch in epochs:
         states = np.asarray(rollouts_by_epoch[epoch]["states"], dtype=float)
@@ -1339,7 +1356,15 @@ def _quadrotor_constraint_axes(fig, subgs, rollouts_by_epoch: dict[int, dict], i
     return [ax_z]
 
 
-def _robot_arm_constraint_axes(fig, subgs, rollouts_by_epoch: dict[int, dict], instance, target_series=None) -> None:
+def _robot_arm_constraint_axes(
+    fig,
+    subgs,
+    rollouts_by_epoch: dict[int, dict],
+    instance,
+    target_series=None,
+    target_dash=TARGET_DASH,
+    target_dash_capstyle="round",
+) -> None:
     epochs = [epoch for epoch in CONSTRAINT_EPOCHS if epoch in rollouts_by_epoch]
     obstacle_radii = [
         0.29 + float(_snapshot_theta(rollouts_by_epoch[epoch], instance)[4])
@@ -1378,12 +1403,12 @@ def _robot_arm_constraint_axes(fig, subgs, rollouts_by_epoch: dict[int, dict], i
             x_target,
             target_series,
             color=TARGET_COLOR,
-            linestyle=TARGET_DASH,
-            linewidth=1.00,
+            linestyle=target_dash,
+            linewidth=1.20,
             alpha=TARGET_ALPHA,
             label="target",
             zorder=20,
-            dash_capstyle="round",
+            dash_capstyle=target_dash_capstyle,
         )
     for epoch in epochs:
         states = np.asarray(rollouts_by_epoch[epoch]["states"], dtype=float)
@@ -1681,11 +1706,20 @@ def plot_ocp_1x6_loss_constraints_figure() -> None:
         else:
             target_series = load_teacher_constraint_series(exp)
             if exp["model"] == "cartpole":
-                axes_list = _cartpole_constraint_axes(fig, gs[0, 2 * col + 1], rollouts_by_epoch, instance, target_series)
+                axes_list = _cartpole_constraint_axes(
+                    fig, gs[0, 2 * col + 1], rollouts_by_epoch, instance, target_series,
+                    target_dash=FIG4_TARGET_DASH, target_dash_capstyle="butt",
+                )
             elif exp["model"] == "quadrotor":
-                axes_list = _quadrotor_constraint_axes(fig, gs[0, 2 * col + 1], rollouts_by_epoch, instance, target_series)
+                axes_list = _quadrotor_constraint_axes(
+                    fig, gs[0, 2 * col + 1], rollouts_by_epoch, instance, target_series,
+                    target_dash=FIG4_TARGET_DASH, target_dash_capstyle="butt",
+                )
             else:
-                axes_list = _robot_arm_constraint_axes(fig, gs[0, 2 * col + 1], rollouts_by_epoch, instance, target_series)
+                axes_list = _robot_arm_constraint_axes(
+                    fig, gs[0, 2 * col + 1], rollouts_by_epoch, instance, target_series,
+                    target_dash=FIG4_TARGET_DASH, target_dash_capstyle="butt",
+                )
             constraint_ax = axes_list[0]
         constraint_ax.set_title("")
         constraint_ax.set_xlabel("Closed-loop step", fontsize=OCP_1X6_LABEL_FONTSIZE)
@@ -1747,10 +1781,10 @@ def plot_ocp_1x6_loss_constraints_figure() -> None:
         [0],
         [0],
         color=TARGET_COLOR,
-        linestyle=TARGET_DASH,
+        linestyle=FIG4_TARGET_DASH,
         linewidth=1.00,
         alpha=TARGET_ALPHA,
-        dash_capstyle="round",
+        dash_capstyle="butt",
         solid_capstyle="butt",
         label="target",
     )
@@ -1771,6 +1805,8 @@ def plot_ocp_1x6_loss_constraints_figure() -> None:
             borderpad=0.24,
             labelspacing=0.16,
         )
+        for handle in loss_legend.get_lines():
+            handle.set_linewidth(1.00)
         loss_legend.get_frame().set_linewidth(0.50)
         constraint_legend = constraint_ax.legend(
             handles=[*constraint_epoch_handles(), target_handle],
@@ -1786,6 +1822,8 @@ def plot_ocp_1x6_loss_constraints_figure() -> None:
             borderpad=0.22,
             labelspacing=0.18,
         )
+        for handle in constraint_legend.get_lines():
+            handle.set_linewidth(1.00)
         constraint_legend.get_frame().set_linewidth(0.50)
 
     panel_labels = ["(a) Cartpole", "(b) Quadrotor", "(c) Robot arm"]

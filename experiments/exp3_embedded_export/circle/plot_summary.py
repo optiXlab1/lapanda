@@ -37,6 +37,7 @@ BLUE = "#1F77B4"
 RED = "#D62728"
 ORANGE = "#B37A2C"
 GREEN = "#00A83B"
+SECONDARY_DASH = (0, (3.2, 4.8))
 SAFE_FILL = "#00FF00"
 VIOLATION_FILL = RED
 GRID = "#D7D9E0"
@@ -128,9 +129,10 @@ def save_paper_style_figure(outdir: Path, case, series: list[tuple[str, np.ndarr
     ax = axes[0]
     center = np.asarray(case.meta["obstacle"], dtype=float)
     radius = float(case.theta[5])
+    physical_radius = 0.25
     obstacle = plt.Circle(
         tuple(center),
-        radius,
+        physical_radius,
         facecolor="#FFFFFF",
         edgecolor="none",
         alpha=1.0,
@@ -140,10 +142,19 @@ def save_paper_style_figure(outdir: Path, case, series: list[tuple[str, np.ndarr
     ax.add_patch(obstacle)
     theta = np.linspace(0, 2 * np.pi, 240)
     ax.plot(
+        center[0] + physical_radius * np.cos(theta),
+        center[1] + physical_radius * np.sin(theta),
+        color=GREEN,
+        lw=1.80,
+        label="_nolegend_",
+        zorder=5,
+    )
+    ax.plot(
         center[0] + radius * np.cos(theta),
         center[1] + radius * np.sin(theta),
         color=GREEN,
-        lw=1.20,
+        linestyle=(0, (3.2, 2.2)),
+        lw=0.85,
         label="_nolegend_",
         zorder=5,
     )
@@ -152,8 +163,8 @@ def save_paper_style_figure(outdir: Path, case, series: list[tuple[str, np.ndarr
         [center[1]],
         marker="+",
         color=GREEN,
-        s=25,
-        linewidths=1.20,
+        s=15,
+        linewidths=1.80,
         label="_nolegend_",
         zorder=6,
     )
@@ -166,9 +177,10 @@ def save_paper_style_figure(outdir: Path, case, series: list[tuple[str, np.ndarr
             traj[:, 1],
             color=color,
             linestyle=style,
-            lw=1.50 if label == "lapanda" else 1.00,
+            lw=0.85,
             label=label,
             zorder=zorder,
+            dash_capstyle="round",
         )
     ax.scatter([case.variable[0]], [case.variable[1]], color="black", marker="^", s=18, label="_nolegend_", zorder=16)
     ax.scatter([case.variable[3]], [case.variable[4]], color="black", marker="*", s=25, label="_nolegend_", zorder=17)
@@ -203,7 +215,7 @@ def save_paper_style_figure(outdir: Path, case, series: list[tuple[str, np.ndarr
     clearance_values = [obstacle_clearance(case, u) for _, u, _, _ in series]
     max_len = max((values.size for values in clearance_values), default=case.horizon)
     k = np.arange(max_len)
-    ymax = 1.25
+    ymax = 1.75
     ymin = -0.25
     ax.axhspan(0.0, ymax, color=SAFE_FILL, alpha=0.035, label="Safe region", zorder=0)
     ax.axhspan(ymin, 0.0, color=VIOLATION_FILL, alpha=0.050, label="Violation region", zorder=0)
@@ -216,9 +228,10 @@ def save_paper_style_figure(outdir: Path, case, series: list[tuple[str, np.ndarr
             clearance,
             color=color,
             linestyle=style,
-            lw=1.50 if label == "lapanda" else 1.00,
+            lw=1.20 if label == "lapanda" else 1.00,
             label=label,
             zorder=zorder,
+            dash_capstyle="round",
         )
     ax.set_xlabel("Horizon step", fontsize=LABEL_FONTSIZE)
     ax.set_ylabel("Clearance", fontsize=LABEL_FONTSIZE)
@@ -227,7 +240,7 @@ def save_paper_style_figure(outdir: Path, case, series: list[tuple[str, np.ndarr
     ax.set_box_aspect((0.65 / 0.35) * (0.80 / 2.80))
     style_axis(ax)
     ax.xaxis.set_major_locator(FixedLocator([0, 3, 6, 9, 12]))
-    ax.yaxis.set_major_locator(FixedLocator([-0.25, 0.25, 0.75, 1.25]))
+    ax.yaxis.set_major_locator(FixedLocator([-0.25, 0.25, 0.75, 1.25, 1.75]))
     legend = ax.legend(
         loc="upper center",
         ncol=2,
@@ -248,7 +261,7 @@ def save_paper_style_figure(outdir: Path, case, series: list[tuple[str, np.ndarr
     legend.get_frame().set_alpha(LEGEND_FRAME_ALPHA)
     ax.text(0.5, -0.36, "(b) Obstacle clearance", transform=ax.transAxes, ha="center", va="top", fontsize=PANEL_LABEL_FONTSIZE, fontfamily="Times New Roman", color=INK)
 
-    fig.subplots_adjust(left=0.070, right=0.994, top=0.955, bottom=0.350, wspace=0.18)
+    fig.subplots_adjust(left=0.070, right=0.985, top=0.955, bottom=0.350, wspace=0.18)
     for suffix in ("png", "pdf", "svg"):
         fig.savefig(outdir / f"circle_obstacle_solution.{suffix}", dpi=300 if suffix == "png" else None)
     plt.close(fig)
@@ -288,7 +301,7 @@ def main():
         if result_json.exists():
             with result_json.open("r", encoding="utf-8") as f:
                 json.load(f)
-        series.append((acados_label, acados_u, BLUE, "--"))
+        series.append((acados_label, acados_u, BLUE, SECONDARY_DASH))
 
     save_paper_style_figure(outdir, case, series[1:])
 
@@ -300,7 +313,10 @@ def main():
     ax.plot(center[0] + case.theta[5] * np.cos(theta), center[1] + case.theta[5] * np.sin(theta), color="black", lw=1.2)
     for label, u, color, style in series:
         traj = rollout(u, case.variable, case.dt)
-        ax.plot(traj[:, 0], traj[:, 1], style, color=color, lw=2.0, label=label)
+        ax.plot(
+            traj[:, 0], traj[:, 1], color=color, linestyle=style, lw=2.0,
+            label=label, dash_capstyle="round",
+        )
         ax.scatter(traj[-1, 0], traj[-1, 1], color=color, s=18)
     ax.scatter([case.variable[0]], [case.variable[1]], c="black", marker="o", s=28, label="start")
     ax.scatter([case.variable[3]], [case.variable[4]], c="black", marker="x", s=42, label="target")
@@ -316,8 +332,14 @@ def main():
     fig, axes = plt.subplots(2, 1, figsize=(6.2, 4.2), sharex=True)
     k = np.arange(case.horizon)
     for label, u, color, style in series:
-        axes[0].plot(k, u[0::2], style, color=color, lw=1.8, label=label)
-        axes[1].plot(k, u[1::2], style, color=color, lw=1.8)
+        axes[0].plot(
+            k, u[0::2], color=color, linestyle=style, lw=1.8,
+            label=label, dash_capstyle="round",
+        )
+        axes[1].plot(
+            k, u[1::2], color=color, linestyle=style, lw=1.8,
+            dash_capstyle="round",
+        )
     axes[0].set_ylabel("speed")
     axes[1].set_ylabel("steer")
     axes[1].set_xlabel("stage")

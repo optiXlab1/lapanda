@@ -117,7 +117,6 @@ From the repository root:
 git clone git@github.com:optiXlab1/lapanda.git
 cd <path-to>/lapanda
 
-python -m pip uninstall lapanda
 python -m pip install -e .
 ```
 
