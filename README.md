@@ -59,8 +59,7 @@ matlab/                      MATLAB CasADi-to-MEX interface
 exports/                     exported embedded/ROS projects used by experiments
 experiments/
   panda_box_rosenbrock/      legacy unnumbered box-Rosenbrock checks
-  exp1_rosenbrock_smooth_constraints/
-                              paper Exp.1 nonconvex constrained Rosenbrock
+  exp1_rosenbrock/           paper Exp.1 nonconvex constrained Rosenbrock
   exp2_OCPs/                 paper Exp.2 constrained OCP imitation learning
   exp3_embedded_export/      paper Exp.3 embedded obstacle avoidance
 tutorials/                   Python notebook, MATLAB, and C usage examples
