@@ -1,0 +1,28 @@
+{
+  "experiment": "exp1_post_forward_penalty_refinement",
+  "sizes": [
+    50,
+    100,
+    200,
+    500,
+    1000
+  ],
+  "trial_id": 0,
+  "constraint_stride": 1,
+  "penalty_scale": 10.0,
+  "tolerance": 0.001,
+  "inner_max_iterations": 4000,
+  "alm_max_iterations": 20,
+  "initial_penalty": 2.0,
+  "penalty_update_factor": 10.0,
+  "max_penalty": 100000000.0,
+  "backward_max_iterations": 800,
+  "ipopt_max_iterations": 3000,
+  "backend": "compiled",
+  "git_commit": "06df5d1",
+  "machine": {
+    "platform": "Windows-10-10.0.26100-SP0",
+    "python": "3.11.7",
+    "processor": "Intel64 Family 6 Model 151 Stepping 2, GenuineIntel"
+  }
+}

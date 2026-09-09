@@ -62,6 +62,13 @@ Plots the representative normalized constraint value
 `sqrt(x_i^2+x_{i+1}^2)/r_i(theta)` for `N=200`.  Values below `1` are feasible;
 values near `1` are active or nearly active.
 
+```text
+post_forward_refinement/
+```
+
+Compares direct backward-only penalty scaling with the stricter alternative
+that re-solves the final ALM subproblem before differentiation.
+
 ## Run Commands
 
 Timing and gradient accuracy:
@@ -81,6 +88,12 @@ Constraint figure:
 
 ```powershell
 python experiments\exp1_rosenbrock_smooth_constraints\plot_constraint_activity.py
+```
+
+Post-forward penalty refinement:
+
+```powershell
+python experiments\exp1_rosenbrock_smooth_constraints\post_forward_refinement\run_comparison.py
 ```
 
 Run `run_scaling_study.py` first, because it writes
@@ -107,4 +120,6 @@ exp1_lapanda_memory_raw.csv
 exp1_lapanda_memory_summary.csv
 exp1_casadi_memory_raw.csv
 exp1_casadi_memory_summary.csv
+post_forward_refinement/results/config.json
+post_forward_refinement/results/post_forward_refinement.csv
 ```
