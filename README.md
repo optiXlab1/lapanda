@@ -103,8 +103,8 @@ Requirements:
 From the repository root:
 
 ```powershell
-git clone git@github.com:optiXlab1/lapanda.git
-cd <path-to>/lapanda
+# Download and extract the anonymous repository, then:
+cd lapanda
 
 python -m pip install -e .
 ```
