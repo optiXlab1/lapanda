@@ -18,6 +18,8 @@ struct backward_parameters {
     unsigned char enable;          /* whether backward calls are allowed */
     real_t tolerance;              /* linear solver tolerance */
     unsigned int max_iterations;   /* maximum linear solver iterations */
+    unsigned int restart;          /* restarted-GMRES subspace dimension */
+    panda_backward_solver_type force_solver; /* auto, MINRES, GMRES, or CG */
 };
 
 typedef struct {

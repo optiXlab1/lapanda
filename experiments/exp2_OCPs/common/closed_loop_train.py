@@ -60,6 +60,11 @@ def add_closed_loop_arguments(parser: argparse.ArgumentParser, model: str) -> No
     parser.add_argument("--alm-max-penalty", type=float, default=alm_defaults.max_penalty)
     parser.add_argument("--backward-max-iterations", type=int, default=backward_defaults.max_iterations)
     parser.add_argument(
+        "--backward-linear-solver",
+        choices=["auto", "cg", "minres", "gmres"],
+        default=backward_defaults.linear_solver,
+    )
+    parser.add_argument(
         "--backward-constraint-penalty-scale",
         type=float,
         default=backward_defaults.constraint_penalty_scale,
@@ -169,6 +174,7 @@ def run_closed_loop_train(model: str, args) -> Path:
             "alm_max_penalty": args.alm_max_penalty,
             "backward_tolerance": args.alm_tol,
             "backward_max_iterations": args.backward_max_iterations,
+            "backward_linear_solver": args.backward_linear_solver,
             "backward_constraint_penalty_scale": args.backward_constraint_penalty_scale,
             "backward_constraint_penalty_max": args.backward_constraint_penalty_max,
             "solver": vars(args),
@@ -214,6 +220,8 @@ def run_closed_loop_train(model: str, args) -> Path:
         backward_iters = []
         residuals = []
         rss = []
+        backward_solvers = []
+        backward_fallbacks = []
 
         for step, snapshot in enumerate(teacher_snapshots):
             demo_u = np.asarray(snapshot["controls"], dtype=float).reshape(-1)
@@ -262,6 +270,8 @@ def run_closed_loop_train(model: str, args) -> Path:
             inner_iters.append(float(np.sum(np.asarray(result["inner_iterations"], dtype=int))))
             backward_iters.append(float(result.get("backward_iterations", -1)))
             residuals.append(float(result["final_residual"]))
+            backward_solvers.append(str(result.get("backward_solver_used", "unknown")))
+            backward_fallbacks.append(bool(result.get("backward_fallback_used", False)))
             if measure_memory:
                 rss.append(float(stats["rss_peak_delta_mb"]))
 
@@ -291,6 +301,8 @@ def run_closed_loop_train(model: str, args) -> Path:
             "outer_iterations": float(np.mean(outer_iters)),
             "inner_iterations_total": float(np.mean(inner_iters)),
             "backward_iterations": float(np.mean(backward_iters)),
+            "backward_solver_used": "/".join(sorted(set(backward_solvers))),
+            "backward_fallback_count": int(sum(backward_fallbacks)),
             "alm_residual_inf": float(np.mean(residuals)),
             "closed_loop_steps": len(teacher_snapshots),
             "final_state": trajectory[-1].tolist(),

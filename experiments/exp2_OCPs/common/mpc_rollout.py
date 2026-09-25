@@ -41,6 +41,11 @@ def add_mpc_arguments(parser: argparse.ArgumentParser, model: str) -> None:
     parser.add_argument("--alm-max-penalty", type=float, default=alm_defaults.max_penalty)
     parser.add_argument("--backward-max-iterations", type=int, default=backward_defaults.max_iterations)
     parser.add_argument(
+        "--backward-linear-solver",
+        choices=["auto", "cg", "minres", "gmres"],
+        default=backward_defaults.linear_solver,
+    )
+    parser.add_argument(
         "--backward-constraint-penalty-scale",
         type=float,
         default=backward_defaults.constraint_penalty_scale,
@@ -101,6 +106,7 @@ def run_mpc_rollout(model: str, args) -> Path:
             "alm_max_penalty": args.alm_max_penalty,
             "backward_tolerance": args.alm_tol,
             "backward_max_iterations": args.backward_max_iterations,
+            "backward_linear_solver": args.backward_linear_solver,
             "backward_constraint_penalty_scale": args.backward_constraint_penalty_scale,
             "backward_constraint_penalty_max": args.backward_constraint_penalty_max,
             "measure_memory": measure_memory,
@@ -162,6 +168,8 @@ def run_mpc_rollout(model: str, args) -> Path:
             "wall_time_sec": stats["elapsed_sec"],
             "forward_time_sec": float(result.get("forward_time_sec", np.nan)),
             "backward_time_sec": float(result.get("backward_time_sec", np.nan)),
+            "backward_solver_used": result.get("backward_solver_used", "not_run"),
+            "backward_fallback_used": bool(result.get("backward_fallback_used", False)),
             "compute_backward": bool(args.compute_backward),
             "outer_iterations": int(result["iterations"]),
             "inner_iterations_total": int(np.sum(np.asarray(result["inner_iterations"], dtype=int))),

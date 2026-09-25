@@ -322,8 +322,8 @@ def plot_publication_1x3(training_csv: Path, outdir: Path, info: dict, args) -> 
     ax.set_ylabel("Imitation loss", fontsize=LABEL_FONTSIZE)
     ax.set_xlim(float(epochs.min()), float(epochs.max()))
     ax.set_xticks([0, 75, 150])
-    ax.set_ylim(0.0, 0.8)
-    ax.set_yticks([0.0, 0.2, 0.4, 0.6, 0.8])
+    ax.set_ylim(0.0, 0.75)
+    ax.set_yticks([0.0, 0.25, 0.5, 0.75])
     ax.margins(x=0.0)
     style_axis(ax)
 
@@ -505,6 +505,7 @@ def main():
     p.add_argument("--alm-penalty-update-factor", type=float, default=exp3_config.ALM_PENALTY_UPDATE_FACTOR)
     p.add_argument("--backward-max-iter", type=int, default=exp3_config.BACKWARD_MAX_ITER)
     p.add_argument("--backward-tol", type=float, default=exp3_config.BACKWARD_TOL)
+    p.add_argument("--linear-solver", choices=["cg", "minres", "auto"], default="cg")
     p.add_argument("--backward-constraint-penalty-scale", type=float, default=1.0)
     p.add_argument("--backward-constraint-penalty-max", type=float, default=0.0)
     p.add_argument("--steer-limit", type=float, default=exp3_config.RECTANGLE_PLOT_STEER_LIMIT)
@@ -512,7 +513,7 @@ def main():
     args = p.parse_args()
 
     training_csv = Path(args.training_csv)
-    outdir = Path(args.outdir) if args.outdir else training_csv.parent / "figure"
+    outdir = Path(args.outdir) if args.outdir else training_csv.parent / "figures"
     outdir.mkdir(parents=True, exist_ok=True)
     info = read_training(training_csv)
     training_plot = plot_training(training_csv, outdir)

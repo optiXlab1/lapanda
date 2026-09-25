@@ -263,6 +263,7 @@ def alm_options_from_args(args):
     backward_options.enable = True
     backward_options.tolerance = args.backward_tol
     backward_options.max_iterations = args.backward_max_iter
+    backward_options.linear_solver = args.linear_solver
     backward_options.constraint_penalty_scale = args.backward_constraint_penalty_scale
     backward_options.constraint_penalty_max = args.backward_constraint_penalty_max
     return solver_options, alm_options, backward_options
@@ -325,6 +326,8 @@ def train_alm(args, teacher_u: np.ndarray, theta0: np.ndarray):
             "outer_iterations": int(result.get("outer_iterations", result.get("iterations", -1))),
             "inner_iterations_sum": int(np.sum(np.asarray(result.get("inner_iterations", []), dtype=int))),
             "backward_iterations": int(result.get("backward_iterations", -1)),
+            "backward_solver_used": result.get("backward_solver_used", ""),
+            "backward_fallback_used": bool(result.get("backward_fallback_used", False)),
             "final_residual": float(result.get("final_residual", np.nan)),
             "grad_norm": float(np.linalg.norm(grad)),
             "margins": json.dumps(theta[5:9].tolist()),
@@ -404,18 +407,30 @@ def build_acados_ocp(case, name: str, outdir: Path, sensitivity: bool, args):
     model.x = x
     model.u = u
     model.p_global = p
+    heading_next = heading + case.dt * speed * ca.tan(steer) / WHEELBASE
     model.disc_dyn_expr = ca.vertcat(
         px_next,
         py_next,
-        heading + case.dt * speed * ca.tan(steer) / WHEELBASE,
+        heading_next,
     )
-    dx = px - target_x
-    dy = py - target_y
-    dheading = ca.atan2(ca.sin(heading - target_heading), ca.cos(heading - target_heading))
+    dx = px_next - target_x
+    dy = py_next - target_y
+    dheading = ca.atan2(
+        ca.sin(heading_next - target_heading),
+        ca.cos(heading_next - target_heading),
+    )
+    terminal_dx = px - target_x
+    terminal_dy = py - target_y
+    terminal_dheading = ca.atan2(
+        ca.sin(heading - target_heading), ca.cos(heading - target_heading)
+    )
     use_external = sensitivity or args.acados_forward_mode == "exact"
     if use_external:
         model.cost_expr_ext_cost = q_pos * (dx**2 + dy**2) + q_heading * dheading**2 + r_speed * speed**2 + r_steer * steer**2
-        model.cost_expr_ext_cost_e = terminal_weight * (q_pos * (dx**2 + dy**2) + q_heading * dheading**2)
+        model.cost_expr_ext_cost_e = terminal_weight * (
+            q_pos * (terminal_dx**2 + terminal_dy**2)
+            + q_heading * terminal_dheading**2
+        )
     else:
         model.cost_y_expr = ca.vertcat(
             ca.sqrt(q_pos) * dx,
@@ -425,9 +440,9 @@ def build_acados_ocp(case, name: str, outdir: Path, sensitivity: bool, args):
             ca.sqrt(r_steer) * steer,
         )
         model.cost_y_expr_e = ca.vertcat(
-            ca.sqrt(terminal_weight * q_pos) * dx,
-            ca.sqrt(terminal_weight * q_pos) * dy,
-            ca.sqrt(terminal_weight * q_heading) * dheading,
+            ca.sqrt(terminal_weight * q_pos) * terminal_dx,
+            ca.sqrt(terminal_weight * q_pos) * terminal_dy,
+            ca.sqrt(terminal_weight * q_heading) * terminal_dheading,
         )
     model.con_h_expr = ca.vertcat(
         0.5
@@ -450,6 +465,7 @@ def build_acados_ocp(case, name: str, outdir: Path, sensitivity: bool, args):
     ocp.solver_options.nlp_solver_tol_comp = args.acados_tol
     ocp.solver_options.qp_solver = "PARTIAL_CONDENSING_HPIPM"
     ocp.solver_options.qp_solver_cond_N = case.horizon
+    ocp.solver_options.qp_solver_iter_max = exp3_config.RECTANGLE_ACADOS_QP_MAX_ITER
     ocp.solver_options.qp_solver_ric_alg = 0
     ocp.solver_options.qp_solver_cond_ric_alg = 0
     ocp.solver_options.hessian_approx = "EXACT" if use_external else "GAUSS_NEWTON"
@@ -618,6 +634,7 @@ def parse_args():
     p.add_argument("--alm-penalty-update-factor", type=float, default=exp3_config.ALM_PENALTY_UPDATE_FACTOR)
     p.add_argument("--backward-max-iter", type=int, default=exp3_config.BACKWARD_MAX_ITER)
     p.add_argument("--backward-tol", type=float, default=exp3_config.BACKWARD_TOL)
+    p.add_argument("--linear-solver", choices=["cg", "minres", "auto"], default="cg")
     p.add_argument("--backward-constraint-penalty-scale", type=float, default=1.0)
     p.add_argument("--backward-constraint-penalty-max", type=float, default=0.0)
     p.add_argument("--steer-limit", type=float, default=STEER_LIMIT)
@@ -649,6 +666,7 @@ def main():
                 "steering_bounds_rad": [-args.steer_limit, args.steer_limit],
                 "inner_tolerance": args.inner_tol,
                 "alm_tolerance": args.alm_tol,
+                "backward_linear_solver": args.linear_solver,
                 "acados_tolerance": args.acados_tol,
                 "epochs": args.epochs,
                 "learning_rate": args.lr,

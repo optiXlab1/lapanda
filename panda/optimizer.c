@@ -168,10 +168,10 @@ int solve_backward_with_options(
         default_opts.enable = TRUE;
         default_opts.tol = problem->backward_params.tolerance;
         default_opts.max_iter = problem->backward_params.max_iterations;
-        default_opts.restart = 40;
+        default_opts.restart = problem->backward_params.restart;
         default_opts.sym_tol = 1e-8;
         default_opts.sym_num_tests = 5;
-        default_opts.force_solver = PANDA_BACKWARD_SOLVER_AUTO;
+        default_opts.force_solver = problem->backward_params.force_solver;
         default_opts.recover_active = TRUE;
 
         if (default_opts.tol <= 0.0) {
@@ -179,6 +179,14 @@ int solve_backward_with_options(
         }
         if (default_opts.max_iter == 0) {
             default_opts.max_iter = 200;
+        }
+        if (default_opts.restart == 0 ||
+            default_opts.restart > default_opts.max_iter) {
+            default_opts.restart = 40;
+        }
+        if (default_opts.force_solver < PANDA_BACKWARD_SOLVER_AUTO ||
+            default_opts.force_solver > PANDA_BACKWARD_SOLVER_CG) {
+            default_opts.force_solver = PANDA_BACKWARD_SOLVER_AUTO;
         }
 
         used_opts = &default_opts;

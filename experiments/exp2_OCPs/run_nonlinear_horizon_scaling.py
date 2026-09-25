@@ -165,6 +165,8 @@ def run_horizon(
             "outer_iterations": int(result["iterations"]),
             "inner_iterations": int(np.sum(np.asarray(result["inner_iterations"], dtype=int))),
             "backward_iterations": int(result.get("backward_iterations", -1)),
+            "backward_solver_used": result.get("backward_solver_used", ""),
+            "backward_fallback_used": bool(result.get("backward_fallback_used", False)),
             "final_residual": float(result["final_residual"]),
         }
         rows.append(row)

@@ -1,12 +1,15 @@
 #ifndef PANDA_BACKWARD_H
 #define PANDA_BACKWARD_H
 
+#include <stddef.h>
+
 #include "../globals/globals.h"
 
 typedef enum {
     PANDA_BACKWARD_SOLVER_AUTO = 0,
     PANDA_BACKWARD_SOLVER_MINRES = 1,
-    PANDA_BACKWARD_SOLVER_GMRES = 2
+    PANDA_BACKWARD_SOLVER_GMRES = 2,
+    PANDA_BACKWARD_SOLVER_CG = 3
 } panda_backward_solver_type;
 
 /*
@@ -41,5 +44,12 @@ int panda_backward_compute(
     real_t* final_residual,
     unsigned int* iterations
 );
+
+/* Peak solver workspace held simultaneously by the most recent backward call. */
+size_t panda_backward_get_last_peak_workspace_bytes(void);
+
+/* Solver selected by the most recent backward call and whether CG fell back. */
+panda_backward_solver_type panda_backward_get_last_solver_used(void);
+unsigned char panda_backward_get_last_fallback_used(void);
 
 #endif

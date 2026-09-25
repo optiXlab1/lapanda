@@ -1,0 +1,27 @@
+{
+  "training_csv": "results/rectangle/lapanda/rectangle_margin_imitation_c.csv",
+  "initial_loss": 0.7191852371908478,
+  "final_loss": 0.0016140717376914194,
+  "final_loss_recomputed": 0.013077366241851705,
+  "teacher_margins": [
+    0.12,
+    0.12,
+    0.01,
+    0.22
+  ],
+  "initial_margins": [
+    0.15,
+    0.15,
+    0.16,
+    0.22
+  ],
+  "final_margins": [
+    0.1102062059975422,
+    0.12336864313380218,
+    0.019874385853645128,
+    0.22
+  ],
+  "loss_margins_plot": "results/rectangle/lapanda/figures/loss_margins.png",
+  "publication_plot": "results/rectangle/lapanda/figures/rectangle_imitation_1x4.png",
+  "trajectory_plot": "results/rectangle/lapanda/figures/teacher_initial_final.png"
+}

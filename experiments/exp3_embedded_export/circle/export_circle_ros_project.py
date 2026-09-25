@@ -97,6 +97,8 @@ int main(void)
     backward_params.enable = 1;
     backward_params.tolerance = 1e-3;
     backward_params.max_iterations = 200;
+    backward_params.restart = 40;
+    backward_params.force_solver = PANDA_BACKWARD_SOLVER_CG;
 
     lapanda_static_init_alm_problem(
         &problem,
@@ -106,7 +108,7 @@ int main(void)
         &backward_params);
 
     params.max_iterations = 100;
-    params.tolerance = 1e-4;
+    params.tolerance = 2e-3;
     params.initial_penalty = 10000.0;
     params.penalty_update_factor = 10.0;
     params.max_penalty = 0.0;
@@ -155,6 +157,8 @@ int main(void)
     printf("backward_time_sec=%.17g\n", info.backward_time_sec);
     printf("backward_iterations=%u\n", backward_info.iterations);
     printf("backward_residual=%.17g\n", backward_info.final_residual);
+    printf("backward_solver_used=%d\n", (int)panda_backward_get_last_solver_used());
+    printf("backward_fallback_used=%u\n", (unsigned int)panda_backward_get_last_fallback_used());
     printf("solution_0=%.17g\n", solution[0]);
     printf("solution_1=%.17g\n", solution[1]);
     return 0;
@@ -221,7 +225,7 @@ public:
         private_nh_.param("inner_max_iterations", inner_max_iterations_, 2000);
         private_nh_.param("inner_tolerance", inner_tolerance_, 1e-1);
         private_nh_.param("alm_max_iterations", alm_max_iterations_, 100);
-        private_nh_.param("alm_tolerance", alm_tolerance_, 1e-4);
+        private_nh_.param("alm_tolerance", alm_tolerance_, 2e-3);
         private_nh_.param("initial_penalty", initial_penalty_, 10000.0);
         private_nh_.param("penalty_update_factor", penalty_update_factor_, 10.0);
         private_nh_.param("compute_backward", compute_backward_, false);
@@ -292,6 +296,8 @@ private:
         backward.enable = compute_backward_ ? 1 : 0;
         backward.tolerance = 1e-3;
         backward.max_iterations = 200;
+        backward.restart = 40;
+        backward.force_solver = PANDA_BACKWARD_SOLVER_CG;
 
         alm_problem problem{};
         lapanda_static_init_alm_problem(
@@ -469,29 +475,6 @@ add_dependencies(circle_mpc_node ${catkin_EXPORTED_TARGETS})
 """,
         encoding="utf-8",
     )
-    (package_dir / "README.md").write_text(
-        """# ROS1 Circle MPC
-
-Place `exports/circle_ros_mpc` in a catkin workspace, then build:
-
-```bash
-catkin_make --pkg ros1_circle_mpc
-source devel/setup.bash
-rosrun ros1_circle_mpc circle_mpc_node _compute_backward:=true
-```
-
-Topics:
-- subscribe `state`: `[x, y, heading]`
-- subscribe `target`: `[x, y, heading]`
-- subscribe `circle_obstacle`: `[safe_radius, obstacle_y]`
-- subscribe `theta`: full 7-vector override
-- publish `control`: first `[speed, steer]`
-- publish `solver_info`: `[status, outer_iter, residual, penalty, forward_time, backward_time, backward_iter]`
-""",
-        encoding="utf-8",
-    )
-
-
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--outdir", default=str(REPO_ROOT / "exports" / "circle_ros_mpc"))
@@ -551,6 +534,43 @@ def main() -> None:
         force=args.force,
     )
     (outdir / "main_circle_benchmark.c").write_text(MAIN_C, encoding="utf-8")
+    (outdir / "solver_config.json").write_text(
+        json.dumps(
+            {
+                "method": "lapanda",
+                "problem": "circle",
+                "backend": "exported C",
+                "horizon": args.horizon,
+                "dynamics": "discrete bicycle",
+                "dt": case.dt,
+                "wheelbase": _circle_impl.WHEELBASE,
+                "initial_state": list(exp3_config.START_STATE),
+                "target_state": list(exp3_config.TARGET_STATE),
+                "theta": list(exp3_config.CIRCLE_THETA),
+                "speed_bounds": [-args.speed_limit, args.speed_limit],
+                "steering_bounds_rad": [
+                    -_circle_impl.STEER_LIMIT,
+                    _circle_impl.STEER_LIMIT,
+                ],
+                "maximum_iterations": {
+                    "panda": exp3_config.INNER_MAX_ITER,
+                    "alm": exp3_config.ALM_MAX_ITER,
+                    "backward": exp3_config.BACKWARD_MAX_ITER,
+                },
+                "tolerance": {
+                    "inner_tolerance": exp3_config.CIRCLE_INNER_TOL,
+                    "alm_tolerance": exp3_config.CIRCLE_ALM_TOL,
+                    "backward_tolerance": exp3_config.BACKWARD_TOL,
+                },
+                "backward_solver": "CG",
+                "outer_loss_for_timing": "0.5 * ||u||^2",
+                "standalone_entry": "circle_mpc_benchmark",
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
     patch_cmake(outdir)
     write_ros1_package(outdir)
     write_run_scripts(outdir)

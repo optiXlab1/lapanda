@@ -68,13 +68,24 @@ def build_ocp(
     model.p_global = p
     model.disc_dyn_expr = ca.vertcat(px_next, py_next, heading_next)
 
-    dx = px - target_x
-    dy = py - target_y
-    dheading = ca.atan2(ca.sin(heading - target_heading), ca.cos(heading - target_heading))
+    dx = px_next - target_x
+    dy = py_next - target_y
+    dheading = ca.atan2(
+        ca.sin(heading_next - target_heading),
+        ca.cos(heading_next - target_heading),
+    )
+    terminal_dx = px - target_x
+    terminal_dy = py - target_y
+    terminal_dheading = ca.atan2(
+        ca.sin(heading - target_heading), ca.cos(heading - target_heading)
+    )
     use_external_cost = sensitivity or forward_mode == "exact"
     if use_external_cost:
         model.cost_expr_ext_cost = q_pos * (dx**2 + dy**2) + q_heading * dheading**2 + r_speed * speed**2 + r_steer * steer**2
-        model.cost_expr_ext_cost_e = terminal_weight * (q_pos * (dx**2 + dy**2) + q_heading * dheading**2)
+        model.cost_expr_ext_cost_e = terminal_weight * (
+            q_pos * (terminal_dx**2 + terminal_dy**2)
+            + q_heading * terminal_dheading**2
+        )
     else:
         model.cost_y_expr = ca.vertcat(
             ca.sqrt(q_pos) * dx,
@@ -84,9 +95,9 @@ def build_ocp(
             ca.sqrt(r_steer) * steer,
         )
         model.cost_y_expr_e = ca.vertcat(
-            ca.sqrt(terminal_weight * q_pos) * dx,
-            ca.sqrt(terminal_weight * q_pos) * dy,
-            ca.sqrt(terminal_weight * q_heading) * dheading,
+            ca.sqrt(terminal_weight * q_pos) * terminal_dx,
+            ca.sqrt(terminal_weight * q_pos) * terminal_dy,
+            ca.sqrt(terminal_weight * q_heading) * terminal_dheading,
         )
     model.con_h_expr = ca.vertcat(safe_radius**2 - (px_next**2 + (py_next - obstacle_y) ** 2))
 

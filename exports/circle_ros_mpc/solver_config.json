@@ -1,0 +1,49 @@
+{
+  "method": "lapanda",
+  "problem": "circle",
+  "backend": "exported C",
+  "horizon": 12,
+  "dynamics": "discrete bicycle",
+  "dt": 0.12,
+  "wheelbase": 0.45,
+  "initial_state": [
+    -1.2,
+    0.0,
+    0.0
+  ],
+  "target_state": [
+    1.2,
+    0.0,
+    0.0
+  ],
+  "theta": [
+    10.0,
+    0.2,
+    0.01,
+    0.01,
+    30.0,
+    0.3,
+    0.2
+  ],
+  "speed_bounds": [
+    -1.5,
+    1.5
+  ],
+  "steering_bounds_rad": [
+    -0.4363323129985824,
+    0.4363323129985824
+  ],
+  "maximum_iterations": {
+    "panda": 2000,
+    "alm": 100,
+    "backward": 200
+  },
+  "tolerance": {
+    "inner_tolerance": 0.1,
+    "alm_tolerance": 0.002,
+    "backward_tolerance": 0.001
+  },
+  "backward_solver": "CG",
+  "outer_loss_for_timing": "0.5 * ||u||^2",
+  "standalone_entry": "circle_mpc_benchmark"
+}

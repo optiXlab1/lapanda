@@ -6,6 +6,24 @@
 #include <stdlib.h>
 #include <math.h>
 
+static size_t g_last_peak_workspace_bytes = 0;
+static panda_backward_solver_type g_last_solver_used = PANDA_BACKWARD_SOLVER_AUTO;
+static unsigned char g_last_fallback_used = FALSE;
+
+size_t panda_backward_get_last_peak_workspace_bytes(void)
+{
+    return g_last_peak_workspace_bytes;
+}
+
+panda_backward_solver_type panda_backward_get_last_solver_used(void)
+{
+    return g_last_solver_used;
+}
+
+unsigned char panda_backward_get_last_fallback_used(void)
+{
+    return g_last_fallback_used;
+}
 typedef struct {
     const real_t* u_star;
     const unsigned int* Fidx;
@@ -159,6 +177,7 @@ int panda_backward_compute(
     unsigned char recover_active;
     panda_backward_solver_type force_solver;
     panda_backward_solver_type solver_used;
+    size_t outer_workspace_bytes;
 
     real_t* B;
     real_t* J;
@@ -205,6 +224,10 @@ int panda_backward_compute(
     Fidx = NULL;
     op_data.x_full = NULL;
     op_data.Hx_full = NULL;
+    g_last_peak_workspace_bytes = 0;
+    g_last_solver_used = PANDA_BACKWARD_SOLVER_AUTO;
+    g_last_fallback_used = FALSE;
+    outer_workspace_bytes = 0;
 
     B = (real_t*)malloc(sizeof(real_t) * n);
     if (B == NULL) goto fail;
@@ -260,7 +283,10 @@ int panda_backward_compute(
         op_data.nf = nf;
         op_data.n = n;
 
-        if (force_solver == PANDA_BACKWARD_SOLVER_MINRES) {
+        if (force_solver == PANDA_BACKWARD_SOLVER_CG) {
+            is_symmetric = TRUE;
+            sym_error = 0.0;
+        } else if (force_solver == PANDA_BACKWARD_SOLVER_MINRES) {
             is_symmetric = TRUE;
             sym_error = 0.0;
         } else if (force_solver == PANDA_BACKWARD_SOLVER_GMRES) {
@@ -279,7 +305,37 @@ int panda_backward_compute(
             }
         }
 
-        if (is_symmetric == TRUE) {
+        if (force_solver == PANDA_BACKWARD_SOLVER_CG ||
+            (force_solver == PANDA_BACKWARD_SOLVER_AUTO && is_symmetric == TRUE)) {
+            /* The local ALM sensitivity operator is expected to be SPD under
+             * SOSC for a sufficiently large penalty.  Fall back when the
+             * observed Krylov directions do not have positive curvature. */
+            solver_used = PANDA_BACKWARD_SOLVER_CG;
+            status = panda_spd_solve(
+                hff_matvec,
+                &op_data,
+                rhsF,
+                xF,
+                nf,
+                tol,
+                max_iter,
+                &relres,
+                &lin_iter);
+            if (status == FAILURE) {
+                g_last_fallback_used = TRUE;
+                solver_used = PANDA_BACKWARD_SOLVER_MINRES;
+                status = panda_minres_solve(
+                    hff_matvec,
+                    &op_data,
+                    rhsF,
+                    xF,
+                    nf,
+                    tol,
+                    max_iter,
+                    &relres,
+                    &lin_iter);
+            }
+        } else if (is_symmetric == TRUE) {
             solver_used = PANDA_BACKWARD_SOLVER_MINRES;
             status = panda_minres_solve(
                 hff_matvec,
@@ -306,6 +362,12 @@ int panda_backward_compute(
                 &lin_iter);
         }
 
+        outer_workspace_bytes = sizeof(real_t) * ((size_t)6u * n + (size_t)2u * nf)
+            + sizeof(unsigned int) * (size_t)n;
+        g_last_peak_workspace_bytes = outer_workspace_bytes
+            + panda_linear_solver_get_last_peak_workspace_bytes();
+        g_last_solver_used = solver_used;
+
         for (i = 0; i < nf; ++i) {
             x[Fidx[i]] = xF[i];
         }
@@ -331,6 +393,9 @@ int panda_backward_compute(
         solver_used = PANDA_BACKWARD_SOLVER_AUTO;
         is_symmetric = TRUE;
         sym_error = 0.0;
+        g_last_peak_workspace_bytes = sizeof(real_t) * (size_t)4u * n
+            + sizeof(unsigned int) * (size_t)n;
+        g_last_solver_used = solver_used;
     }
 
     if (status == FAILURE) {
@@ -359,7 +424,6 @@ int panda_backward_compute(
         *iterations = lin_iter;
     }
 
-    (void)solver_used;
     (void)is_symmetric;
     (void)sym_error;
     (void)gamma;

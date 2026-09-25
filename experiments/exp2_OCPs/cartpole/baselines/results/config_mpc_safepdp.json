@@ -1,0 +1,20 @@
+{
+  "model": "cartpole",
+  "horizon": 20,
+  "steps": 50,
+  "tol": 0.001,
+  "sensitivity_mode": "coc",
+  "barrier_gamma": null,
+  "theta_true": [
+    1.0,
+    18.0,
+    0.05,
+    0.25,
+    0.015
+  ],
+  "measure_memory": false,
+  "memory_only": false,
+  "problem_build_time_sec": 0.016208800021559,
+  "solver_build_time_sec": 0.002485699951648712,
+  "build_time_sec": 0.018694499973207712
+}

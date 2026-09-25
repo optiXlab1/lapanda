@@ -1,0 +1,23 @@
+{
+  "experiment": "exp1_matched_accuracy_casadi_repeated",
+  "sizes": [
+    100,
+    200,
+    500,
+    1000
+  ],
+  "trials": 10,
+  "repetitions": 5,
+  "trial_start": 0,
+  "tolerance": 0.001,
+  "max_iterations": 5000,
+  "warm_up": "one untimed forward and backward call per problem size",
+  "reference_csv": "experiments/exp1_rosenbrock_smooth_constraints/matched_accuracy/reference.csv",
+  "git_commit": "7448c2a",
+  "machine": {
+    "platform": "Windows-10-10.0.26100-SP0",
+    "python": "3.11.7",
+    "processor": "Intel64 Family 6 Model 151 Stepping 2, GenuineIntel"
+  },
+  "reference": "shared high-accuracy original-NLP KKT gradient at the aligned lapanda point"
+}

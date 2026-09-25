@@ -1,0 +1,26 @@
+{
+  "initial": {
+    "final_distance": 2.4,
+    "max_speed_abs": 0.0,
+    "max_steer_abs": 0.0,
+    "min_distance": 1.2165525060596438,
+    "geometric_violation": -0.9165525060596438,
+    "constraint_max": -1.39
+  },
+  "lapanda": {
+    "final_distance": 0.2482574772506711,
+    "max_speed_abs": 1.5,
+    "max_steer_abs": 0.4363323129985824,
+    "min_distance": 0.299910913695162,
+    "geometric_violation": 8.908630483800417e-05,
+    "constraint_max": 5.344384653310774e-05
+  },
+  "acados": {
+    "final_distance": 0.24809329165125188,
+    "max_speed_abs": 1.4999999978312684,
+    "max_steer_abs": 0.4158584477224982,
+    "min_distance": 0.3000000018278481,
+    "geometric_violation": -1.8278480951039455e-09,
+    "constraint_max": -1.0967088487356946e-09
+  }
+}

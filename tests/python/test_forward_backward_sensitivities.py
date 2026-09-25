@@ -104,6 +104,8 @@ def test_panda_box_qp_backward_matches_active_set_formula():
     np.testing.assert_allclose(result["solution"], solution, atol=2e-7)
     np.testing.assert_allclose(result["grad_theta"], expected_grad, atol=2e-7)
     assert result["backward_residual"] < 1e-8
+    assert result["backward_solver_used"] == "cg"
+    assert result["backward_fallback_used"] is False
 
 
 @pytest.mark.parametrize(
@@ -177,3 +179,5 @@ def test_lapanda_backward_matches_last_inner_subproblem_formula():
 
     np.testing.assert_allclose(result["grad_theta"], expected, atol=2e-4)
     assert result["backward_residual"] < 1e-6
+    assert result["backward_solver_used"] == "cg"
+    assert result["backward_fallback_used"] is False

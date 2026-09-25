@@ -33,10 +33,12 @@ from experiments.exp2_OCPs.safepdp_baseline import main as run_safepdp
 from experiments.exp2_OCPs.utils import build_alm_solver, make_variable_from_state, solve_alm_once
 
 MODELS = ("cartpole", "quadrotor", "robot_arm")
+TEACHER_SAMPLING_VERSION = "feasible_v2"
 
 
 def teacher_archive_path(model: str, horizon: int, samples: int, seed: int) -> Path:
-    return results_dir(model) / f"{MODEL_PREFIX[model]}_expert{samples}_h{horizon}_seed{seed}.mpc_snapshots.npz"
+    suffix = f"_{TEACHER_SAMPLING_VERSION}" if model == "robot_arm" else ""
+    return results_dir(model) / f"{MODEL_PREFIX[model]}_expert{samples}_h{horizon}_seed{seed}{suffix}.mpc_snapshots.npz"
 
 
 def sample_initial_states(instance, count: int, seed: int) -> np.ndarray:
@@ -58,9 +60,9 @@ def sample_initial_states(instance, count: int, seed: int) -> np.ndarray:
         states[:, 5] += rng.uniform(-0.10, 0.10, size=count)
         return states
     if instance.name == "two_link_arm":
-        states = np.tile(np.asarray(instance.x_initial, dtype=float), (count, 1))
-        states[:, 0] += rng.uniform(-0.20, 0.20, size=count)
-        states[:, 1] += rng.uniform(-0.20, 0.20, size=count)
+        states = np.empty((count, instance.nx), dtype=float)
+        states[:, 0] = rng.uniform(-1.10, -0.80, size=count)
+        states[:, 1] = rng.uniform(1.05, 1.28, size=count)
         return states
     raise ValueError(instance.name)
 
@@ -82,6 +84,7 @@ def common_alm_settings(args, model: str):
         "alm_penalty_update_factor": args.alm_penalty_update_factor or alm.penalty_update_factor,
         "alm_max_penalty": alm.max_penalty if args.alm_max_penalty is None else args.alm_max_penalty,
         "backward_max_iterations": args.backward_max_iterations or backward.max_iterations,
+        "backward_linear_solver": args.backward_linear_solver or backward.linear_solver,
         "backward_constraint_penalty_scale": (
             backward.constraint_penalty_scale
             if args.backward_constraint_penalty_scale is None
@@ -117,7 +120,11 @@ def generate_teacher_archive(model: str, args, settings: dict, out_path: Path) -
         **settings,
     )
     snapshots = []
-    for sample_index, state in enumerate(sample_initial_states(instance, args.teacher_samples, args.teacher_seed)):
+    sampled_states = sample_initial_states(instance, args.teacher_samples, args.teacher_seed)
+    if model == "robot_arm":
+        assert np.all((-1.10 <= sampled_states[:, 0]) & (sampled_states[:, 0] <= 0.75))
+        assert np.all((-0.65 <= sampled_states[:, 1]) & (sampled_states[:, 1] <= 1.28))
+    for sample_index, state in enumerate(sampled_states):
         demo_zero = np.zeros(instance.horizon * instance.nu)
         variable = make_variable_from_state(instance, state, demo_zero)
         result = solve_alm_once(
@@ -248,6 +255,11 @@ def main() -> None:
     parser.add_argument("--quadrotor-alm-initial-penalty", dest="quadrotor_alm_initial_penalty", type=float, default=None)
     parser.add_argument("--robot-arm-alm-initial-penalty", dest="robot_arm_alm_initial_penalty", type=float, default=None)
     parser.add_argument("--backward-max-iterations", type=int, default=None)
+    parser.add_argument(
+        "--backward-linear-solver",
+        choices=("auto", "cg", "minres", "gmres"),
+        default=None,
+    )
     parser.add_argument("--backward-constraint-penalty-scale", type=float, default=None)
     parser.add_argument("--backward-constraint-penalty-max", type=float, default=None)
     parser.add_argument("--safepdp-tol", type=float, default=None)

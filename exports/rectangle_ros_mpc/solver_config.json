@@ -4,6 +4,29 @@
   "backend": "exported C",
   "horizon": 20,
   "dynamics": "discrete bicycle",
+  "dt": 0.12,
+  "wheelbase": 0.45,
+  "initial_state": [
+    -1.2,
+    0.0,
+    0.0
+  ],
+  "target_state": [
+    1.2,
+    0.0,
+    0.0
+  ],
+  "theta": [
+    5.0,
+    0.2,
+    0.01,
+    0.01,
+    20.0,
+    0.12,
+    0.12,
+    0.01,
+    0.22
+  ],
   "speed_bounds": [
     -1.0,
     1.0
@@ -13,10 +36,16 @@
     0.7
   ],
   "tolerance": {
-    "alm_tolerance": 1e-05,
+    "alm_tolerance": 0.0001,
     "inner_tolerance": 0.001,
     "backward_tolerance": 0.001
   },
+  "maximum_iterations": {
+    "panda": 2000,
+    "alm": 100,
+    "backward": 200
+  },
+  "backward_solver": "CG",
   "notes": "Rectangle hard-constraint margin problem, final tolerance setting used for ROS/Raspberry Pi export.",
   "standalone_entry": "rectangle_mpc_benchmark",
   "imitation_entry": "rectangle_imitation_benchmark",

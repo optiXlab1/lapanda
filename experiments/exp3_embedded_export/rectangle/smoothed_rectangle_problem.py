@@ -109,7 +109,7 @@ def load_teacher() -> np.ndarray:
         EXP_DIR
         / "results"
         / "rectangle"
-        / "c_export_wider_sides_e150"
+        / "lapanda"
         / "teacher_solution.csv"
     )
     values = np.loadtxt(path, delimiter=",").reshape(-1, 2)
@@ -344,6 +344,7 @@ def run_lapanda(
     backward_options.enable = True
     backward_options.tolerance = 1e-4
     backward_options.max_iterations = 1000
+    backward_options.linear_solver = "cg"
     metadata = solver.generated_oracle.metadata
     forward_times = []
     backward_times = []
@@ -376,6 +377,7 @@ def run_lapanda(
         continuation_options.warm_start_inner = True
         continuation_backward = BackwardOptions()
         continuation_backward.enable = False
+        continuation_backward.linear_solver = "cg"
         continuation_result = solve_lapanda_compiled(
             str(solver.generated_oracle.library_path),
             metadata["n"],
@@ -453,6 +455,8 @@ def run_lapanda(
         "inner_iterations_sum": int(np.sum(np.asarray(result.get("inner_iterations", []), dtype=int))),
         "backward_iterations": int(result.get("backward_iterations", -1)),
         "backward_residual": float(result.get("backward_residual", np.nan)),
+        "backward_solver_used": result.get("backward_solver_used", ""),
+        "backward_fallback_used": bool(result.get("backward_fallback_used", False)),
         "final_residual": float(result.get("final_residual", np.nan)),
         "penalty": float(result.get("penalty", np.nan)),
         "imitation_loss": 0.5 * float(np.sum((solution - teacher) ** 2)),

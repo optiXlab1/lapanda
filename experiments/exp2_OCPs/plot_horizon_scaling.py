@@ -17,20 +17,23 @@ OUTPUT_STEM = "nonlinear_horizon_scaling_lapanda_turbompc_gpu"
 HORIZONS = tuple(range(10, 201, 20))
 
 RED = "#D62728"
-PURPLE = "#9467BD"
+BLUE = "#1F77B4"
 GRID = "#C6C6C6"
 PANEL_FACE = "#F3F3F3"
 LEGEND_FACE = "#FFFFFF"
 LEGEND_EDGE = "#D3D6DE"
 
 ICLR_TEXT_WIDTH_IN = 5.5
+FIGURE_WIDTH_FRACTION = 0.50
+FIGURE_WIDTH_IN = ICLR_TEXT_WIDTH_IN * FIGURE_WIDTH_FRACTION
+FIGURE_HEIGHT_IN = 1.65
 TICK_FONTSIZE = 7.0
 LABEL_FONTSIZE = 7.0
 LEGEND_FONTSIZE = 7.0
 
 METHODS = (
     ("lapanda", RED, "o", "-", 1.20),
-    ("TurboMPC-GPU", PURPLE, "s", "-", 1.00),
+    ("TurboMPC-GPU", BLUE, "s", "-", 1.00),
 )
 
 
@@ -101,7 +104,9 @@ def main() -> None:
             "ps.fonttype": 42,
         }
     )
-    fig, ax = plt.subplots(figsize=(ICLR_TEXT_WIDTH_IN, 1.95), dpi=300)
+    # Generate at the final half-text-width size so the 7 pt text is not
+    # reduced again when the figure is placed in the paper.
+    fig, ax = plt.subplots(figsize=(FIGURE_WIDTH_IN, FIGURE_HEIGHT_IN), dpi=300)
     for method, color, marker, linestyle, linewidth in METHODS:
         horizons, total_time = data[method]
         ax.plot(
@@ -117,7 +122,8 @@ def main() -> None:
         )
 
     style_axis(ax)
-    ax.set_xticks(range(10, 191, 20))
+    ax.set_ylim(top=1e4)
+    ax.set_xticks([10, 50, 90, 130, 170, 190])
     ax.set_xlim(10, 190)
     ax.set_xlabel("Horizon $N$", fontsize=LABEL_FONTSIZE, labelpad=5.0)
     ax.set_ylabel("Total time (ms)", fontsize=LABEL_FONTSIZE, labelpad=1.5)
@@ -126,7 +132,7 @@ def main() -> None:
         handles,
         labels,
         loc="upper left",
-        bbox_to_anchor=(0.018, 0.982),
+        bbox_to_anchor=(0.025, 0.975),
         ncol=2,
         fontsize=LEGEND_FONTSIZE,
         frameon=True,
@@ -135,14 +141,14 @@ def main() -> None:
         edgecolor=LEGEND_EDGE,
         framealpha=0.96,
         borderpad=0.30,
-        handlelength=1.65,
-        handletextpad=0.48,
-        columnspacing=1.00,
+        handlelength=1.35,
+        handletextpad=0.35,
+        columnspacing=0.65,
     )
     legend.get_frame().set_linewidth(0.75)
     legend.get_frame().set_facecolor(LEGEND_FACE)
     legend.get_frame().set_alpha(0.96)
-    fig.subplots_adjust(left=0.105, right=0.985, top=0.955, bottom=0.305)
+    fig.subplots_adjust(left=0.185, right=0.975, top=0.955, bottom=0.265)
 
     stem = args.outdir / OUTPUT_STEM
     for suffix in ("png", "pdf", "svg"):

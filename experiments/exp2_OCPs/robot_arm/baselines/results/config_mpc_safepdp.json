@@ -1,0 +1,20 @@
+{
+  "model": "two_link_arm",
+  "horizon": 20,
+  "steps": 50,
+  "tol": 0.001,
+  "sensitivity_mode": "coc",
+  "barrier_gamma": null,
+  "theta_true": [
+    0.8,
+    8.0,
+    0.02,
+    0.02,
+    0.12
+  ],
+  "measure_memory": false,
+  "memory_only": false,
+  "problem_build_time_sec": 0.01403649989515543,
+  "solver_build_time_sec": 0.0024387999437749386,
+  "build_time_sec": 0.01647529983893037
+}

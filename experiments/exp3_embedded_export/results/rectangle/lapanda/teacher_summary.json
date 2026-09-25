@@ -1,0 +1,30 @@
+{
+  "teacher_margins": [
+    0.12,
+    0.12,
+    0.01,
+    0.22
+  ],
+  "learn_mask": [
+    true,
+    true,
+    true,
+    false
+  ],
+  "teacher_build_time_sec": 0.014427099842578173,
+  "teacher_build_rss_delta_mb": 0.37109375,
+  "teacher_loss_self": 0.0,
+  "teacher_metrics": {
+    "final_distance": 0.017111107457024374,
+    "max_speed_abs": 1.0,
+    "max_steer_abs": 0.5204672404912403,
+    "inside_margin_max": 0.13795998035383253,
+    "geometric_violation": 0.13795998035383253,
+    "constraint_max": 8.472818224701101e-05
+  },
+  "teacher_result": {
+    "iterations": 6,
+    "final_residual": 8.472818224701101e-05,
+    "inner_iterations_sum": 1083
+  }
+}

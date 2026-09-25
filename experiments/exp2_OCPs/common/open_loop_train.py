@@ -49,6 +49,11 @@ def add_open_loop_arguments(parser: argparse.ArgumentParser, model: str) -> None
     parser.add_argument("--alm-max-penalty", type=float, default=alm_defaults.max_penalty)
     parser.add_argument("--backward-max-iterations", type=int, default=backward_defaults.max_iterations)
     parser.add_argument(
+        "--backward-linear-solver",
+        choices=["auto", "cg", "minres", "gmres"],
+        default=backward_defaults.linear_solver,
+    )
+    parser.add_argument(
         "--backward-constraint-penalty-scale",
         type=float,
         default=backward_defaults.constraint_penalty_scale,
@@ -137,6 +142,7 @@ def run_open_loop_train(model: str, args) -> Path:
             "alm_max_penalty": args.alm_max_penalty,
             "backward_tolerance": args.alm_tol,
             "backward_max_iterations": args.backward_max_iterations,
+            "backward_linear_solver": args.backward_linear_solver,
             "backward_constraint_penalty_scale": args.backward_constraint_penalty_scale,
             "backward_constraint_penalty_max": args.backward_constraint_penalty_max,
             "solver": vars(args),
@@ -172,6 +178,8 @@ def run_open_loop_train(model: str, args) -> Path:
         sample_inner_iters = []
         sample_backward_iters = []
         sample_residuals = []
+        sample_backward_solvers = []
+        sample_backward_fallbacks = []
 
         for sample_index, snapshot in enumerate(teacher_snapshots):
             demo_u = np.asarray(snapshot["controls"], dtype=float).reshape(-1)
@@ -217,6 +225,8 @@ def run_open_loop_train(model: str, args) -> Path:
             sample_inner_iters.append(float(np.sum(np.asarray(result["inner_iterations"], dtype=int))))
             sample_backward_iters.append(float(result.get("backward_iterations", -1)))
             sample_residuals.append(float(result["final_residual"]))
+            sample_backward_solvers.append(str(result.get("backward_solver_used", "unknown")))
+            sample_backward_fallbacks.append(bool(result.get("backward_fallback_used", False)))
 
         grad = np.mean(np.asarray(sample_grads, dtype=float), axis=0)
         loss = float(np.mean(sample_losses))
@@ -240,6 +250,8 @@ def run_open_loop_train(model: str, args) -> Path:
             "outer_iterations": float(np.mean(sample_outer_iters)),
             "inner_iterations_total": float(np.mean(sample_inner_iters)),
             "backward_iterations": float(np.mean(sample_backward_iters)),
+            "backward_solver_used": "/".join(sorted(set(sample_backward_solvers))),
+            "backward_fallback_count": int(sum(sample_backward_fallbacks)),
             "alm_residual_inf": float(np.mean(sample_residuals)),
             "teacher_rollout_samples": len(teacher_snapshots),
         }

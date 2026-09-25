@@ -52,7 +52,7 @@ int main(void)
     fill_problem_data(theta, variable);
 
     for (i = 0; i < LAPANDA_NCON; ++i) {
-        constraint_lower[i] = -1.0e20;
+        constraint_lower[i] = 0.0;
         constraint_upper[i] = 0.0;
     }
 
@@ -65,6 +65,8 @@ int main(void)
     backward_params.enable = 1;
     backward_params.tolerance = 1e-3;
     backward_params.max_iterations = 200;
+    backward_params.restart = 40;
+    backward_params.force_solver = PANDA_BACKWARD_SOLVER_CG;
 
     lapanda_static_init_alm_problem(
         &problem,
@@ -74,7 +76,7 @@ int main(void)
         &backward_params);
 
     params.max_iterations = 100;
-    params.tolerance = 1e-5;
+    params.tolerance = 1e-4;
     params.initial_penalty = 10000.0;
     params.penalty_update_factor = 10.0;
     params.max_penalty = 0.0;
@@ -123,6 +125,8 @@ int main(void)
     printf("backward_time_sec=%.17g\n", info.backward_time_sec);
     printf("backward_iterations=%u\n", backward_info.iterations);
     printf("backward_residual=%.17g\n", backward_info.final_residual);
+    printf("backward_solver_used=%d\n", (int)panda_backward_get_last_solver_used());
+    printf("backward_fallback_used=%u\n", (unsigned int)panda_backward_get_last_fallback_used());
     printf("solution_0=%.17g\n", solution[0]);
     printf("solution_1=%.17g\n", solution[1]);
     return 0;

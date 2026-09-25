@@ -40,10 +40,10 @@
     "main_circle_benchmark.c",
     "main_example.c",
     "ros1_circle_mpc/CMakeLists.txt",
-    "ros1_circle_mpc/README.md",
     "ros1_circle_mpc/package.xml",
     "ros1_circle_mpc/src/circle_mpc_node.cpp",
     "run_ros1_node.sh",
-    "run_standalone.sh"
+    "run_standalone.sh",
+    "solver_config.json"
   ]
 }

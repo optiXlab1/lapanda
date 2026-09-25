@@ -285,7 +285,7 @@ static ocp_nlp_dims* rect_margin_forward_acados_create_setup_dimensions(rect_mar
     ocp_nlp_dims_set_opt_vars(nlp_config, nlp_dims, "np", np);
 
     ocp_nlp_dims_set_global(nlp_config, nlp_dims, "np_global", 15);
-    ocp_nlp_dims_set_global(nlp_config, nlp_dims, "n_global_data", 34);
+    ocp_nlp_dims_set_global(nlp_config, nlp_dims, "n_global_data", 36);
 
     for (int i = 0; i <= N; i++)
     {
@@ -367,9 +367,9 @@ void rect_margin_forward_acados_create_setup_functions(rect_margin_forward_solve
         printf("input dimension of p_global_precompute_fun should be np_global = 15, got %d\n", capsule->p_global_precompute_fun.args_size[0]);
         exit(1);
     }
-    if (capsule->p_global_precompute_fun.res_size[0] != 34)
+    if (capsule->p_global_precompute_fun.res_size[0] != 36)
     {
-        printf("output dimension of p_global_precompute_fun should be n_global_data = 34, got %d\n", capsule->p_global_precompute_fun.res_size[0]);
+        printf("output dimension of p_global_precompute_fun should be n_global_data = 36, got %d\n", capsule->p_global_precompute_fun.res_size[0]);
         exit(1);
     }
 
@@ -812,16 +812,16 @@ static void rect_margin_forward_acados_create_set_opts(rect_margin_forward_solve
 
 
     // set SQP specific options
-    double nlp_solver_tol_stat = 0.00001;
+    double nlp_solver_tol_stat = 0.0001;
     ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "tol_stat", &nlp_solver_tol_stat);
 
-    double nlp_solver_tol_eq = 0.00001;
+    double nlp_solver_tol_eq = 0.0001;
     ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "tol_eq", &nlp_solver_tol_eq);
 
-    double nlp_solver_tol_ineq = 0.00001;
+    double nlp_solver_tol_ineq = 0.0001;
     ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "tol_ineq", &nlp_solver_tol_ineq);
 
-    double nlp_solver_tol_comp = 0.00001;
+    double nlp_solver_tol_comp = 0.0001;
     ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "tol_comp", &nlp_solver_tol_comp);
 
     int nlp_solver_max_iter = 1000;

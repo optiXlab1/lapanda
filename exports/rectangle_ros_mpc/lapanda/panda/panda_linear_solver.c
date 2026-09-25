@@ -4,6 +4,13 @@
 #include <stdlib.h>
 #include <math.h>
 
+static size_t g_last_peak_workspace_bytes = 0;
+static size_t g_persistent_workspace_bytes = 0;
+
+size_t panda_linear_solver_get_last_peak_workspace_bytes(void)
+{
+    return g_last_peak_workspace_bytes;
+}
 static void set_zero(real_t* x, unsigned int n)
 {
     unsigned int i;
@@ -95,6 +102,14 @@ static int gmres_least_squares(
     rhs = (real_t*)malloc(sizeof(real_t) * cols);
     if (rhs == NULL) goto fail;
 
+    {
+        const size_t temporary_bytes = sizeof(real_t) * ((size_t)cols * cols + cols);
+        const size_t candidate = g_persistent_workspace_bytes + temporary_bytes;
+        if (candidate > g_last_peak_workspace_bytes) {
+            g_last_peak_workspace_bytes = candidate;
+        }
+    }
+
     for (i = 0; i < cols; ++i) {
         rhs[i] = beta * H[i];
         for (j = 0; j < cols; ++j) {
@@ -169,6 +184,8 @@ int panda_spd_solve(
     r = NULL;
     p = NULL;
     Ap = NULL;
+    g_last_peak_workspace_bytes = 0;
+    g_persistent_workspace_bytes = 0;
 
     if (n == 0) {
         if (relres != NULL) *relres = 0.0;
@@ -182,6 +199,9 @@ int panda_spd_solve(
     if (p == NULL) goto fail;
     Ap = (real_t*)malloc(sizeof(real_t) * n);
     if (Ap == NULL) goto fail;
+
+    g_persistent_workspace_bytes = sizeof(real_t) * (size_t)3u * n;
+    g_last_peak_workspace_bytes = g_persistent_workspace_bytes;
 
     for (i = 0; i < n; ++i) {
         x[i] = 0.0;
@@ -217,7 +237,8 @@ int panda_spd_solve(
         }
 
         pAp = inner_product(p, Ap, (int)n);
-        if (fabs(pAp) < MACHINE_ACCURACY) {
+        /* CG requires positive curvature along every search direction. */
+        if (pAp <= MACHINE_ACCURACY) {
             if (relres != NULL) *relres = rnorm;
             if (iter != NULL) *iter = k;
             free(r);
@@ -301,6 +322,8 @@ int panda_minres_solve(
     y = NULL;
     work = NULL;
     x_trial = NULL;
+    g_last_peak_workspace_bytes = 0;
+    g_persistent_workspace_bytes = 0;
 
     if (n == 0) {
         if (relres != NULL) *relres = 0.0;
@@ -332,6 +355,13 @@ int panda_minres_solve(
     if (work == NULL) goto fail;
     x_trial = (real_t*)malloc(sizeof(real_t) * n);
     if (x_trial == NULL) goto fail;
+
+    g_persistent_workspace_bytes = sizeof(real_t) * (
+        (size_t)(max_iter + 1) * n
+        + (size_t)(max_iter + 1) * max_iter
+        + max_iter
+        + 2u * n);
+    g_last_peak_workspace_bytes = g_persistent_workspace_bytes;
 
     set_zero(Tbar, (max_iter + 1) * max_iter);
     for (i = 0; i < n; ++i) {
@@ -483,6 +513,8 @@ int panda_gmres_solve(
     y = NULL;
     w = NULL;
     r = NULL;
+    g_last_peak_workspace_bytes = 0;
+    g_persistent_workspace_bytes = 0;
 
     if (n == 0) {
         if (relres != NULL) *relres = 0.0;
@@ -514,6 +546,13 @@ int panda_gmres_solve(
     if (w == NULL) goto fail;
     r = (real_t*)malloc(sizeof(real_t) * n);
     if (r == NULL) goto fail;
+
+    g_persistent_workspace_bytes = sizeof(real_t) * (
+        (size_t)(restart + 1) * n
+        + (size_t)(restart + 1) * restart
+        + restart
+        + 2u * n);
+    g_last_peak_workspace_bytes = g_persistent_workspace_bytes;
 
     for (i = 0; i < n; ++i) {
         x[i] = 0.0;

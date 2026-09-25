@@ -1,0 +1,37 @@
+{
+  "task": "rectangular-obstacle imitation learning",
+  "horizon": 20,
+  "dt": 0.12,
+  "speed_bounds": [
+    -1.0,
+    1.0
+  ],
+  "steering_bounds_rad": [
+    -0.7,
+    0.7
+  ],
+  "inner_tolerance": 0.001,
+  "alm_tolerance": 0.0001,
+  "backward_linear_solver": "cg",
+  "acados_tolerance": 1e-05,
+  "epochs": 150,
+  "learning_rate": 0.001,
+  "teacher_margins": [
+    0.12,
+    0.12,
+    0.01,
+    0.22
+  ],
+  "initial_margins": [
+    0.15,
+    0.15,
+    0.16,
+    0.22
+  ],
+  "learn_mask": [
+    true,
+    true,
+    true,
+    false
+  ]
+}

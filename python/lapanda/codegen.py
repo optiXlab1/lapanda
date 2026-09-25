@@ -383,6 +383,8 @@ int main(void)
     backward_params.enable = 0;
     backward_params.tolerance = 1e-8;
     backward_params.max_iterations = 800;
+    backward_params.restart = 40;
+    backward_params.force_solver = PANDA_BACKWARD_SOLVER_CG;
 
 #if LAPANDA_NCON > 0
     {

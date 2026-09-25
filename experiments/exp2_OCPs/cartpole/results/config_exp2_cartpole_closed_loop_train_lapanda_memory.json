@@ -3,7 +3,7 @@
   "instance": "cartpole",
   "horizon": 20,
   "steps": 1,
-  "teacher_source": "./experiments\\exp3_OCPs\\cartpole\\results\\exp3_cartpole_mpc_lapanda_teacher.mpc_snapshots.npz",
+  "teacher_source": "F:\\CodeInJLU\\About_PANOC\\lapanda\\experiments\\exp2_OCPs\\cartpole\\results\\exp2_cartpole_mpc_lapanda_teacher.mpc_snapshots.npz",
   "theta_true": [
     1.0,
     18.0,
@@ -18,9 +18,9 @@
     0.08,
     0.08
   ],
-  "problem_build_time_sec": 0.060187799856066704,
-  "solver_build_time_sec": 0.025402799947187304,
-  "build_time_sec": 0.08559059980325401,
+  "problem_build_time_sec": 0.040943500120192766,
+  "solver_build_time_sec": 0.02276250021532178,
+  "build_time_sec": 0.06370600033551455,
   "measure_memory": true,
   "memory_only": true,
   "learn_theta_indices": "",
@@ -29,7 +29,8 @@
   "alm_max_penalty": 0.0,
   "backward_tolerance": 0.001,
   "backward_max_iterations": 800,
-  "backward_constraint_penalty_scale": 10.0,
+  "backward_linear_solver": "cg",
+  "backward_constraint_penalty_scale": 1.0,
   "backward_constraint_penalty_max": 1000000.0,
   "solver": {
     "horizon": 20,
@@ -46,7 +47,7 @@
     "theta_init": "default",
     "learn_theta_indices": "",
     "output_tag": "memory",
-    "teacher_source": "./experiments\\exp3_OCPs\\cartpole\\results\\exp3_cartpole_mpc_lapanda_teacher.mpc_snapshots.npz",
+    "teacher_source": "F:\\CodeInJLU\\About_PANOC\\lapanda\\experiments\\exp2_OCPs\\cartpole\\results\\exp2_cartpole_mpc_lapanda_teacher.mpc_snapshots.npz",
     "theta_true_override": "",
     "theta_initial_override": "",
     "warm_start_penalty": false,
@@ -55,13 +56,14 @@
     "alm_penalty_update_factor": 5.0,
     "alm_max_penalty": 0.0,
     "backward_max_iterations": 800,
-    "backward_constraint_penalty_scale": 10.0,
+    "backward_linear_solver": "cg",
+    "backward_constraint_penalty_scale": 1.0,
     "backward_constraint_penalty_max": 1000000.0
   },
-  "problem_build_rss_peak_delta_mb": 1.22265625,
-  "problem_build_rss_tree_peak_delta_mb": 1.22265625,
-  "solver_build_rss_peak_delta_mb": 0.265625,
-  "solver_build_rss_tree_peak_delta_mb": 0.265625,
-  "build_rss_delta_mb": 1.48828125,
-  "build_rss_tree_delta_mb": 1.48828125
+  "problem_build_rss_peak_delta_mb": 1.25,
+  "problem_build_rss_tree_peak_delta_mb": 1.25,
+  "solver_build_rss_peak_delta_mb": 0.28515625,
+  "solver_build_rss_tree_peak_delta_mb": 0.28515625,
+  "build_rss_delta_mb": 1.53515625,
+  "build_rss_tree_delta_mb": 1.53515625
 }

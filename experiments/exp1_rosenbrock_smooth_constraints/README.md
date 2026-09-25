@@ -1,125 +1,66 @@
-# Exp.1 Rosenbrock With Smooth General Constraints
+# Exp. 1: constrained Rosenbrock benchmark
 
-This experiment is the paper Rosenbrock benchmark for general nonlinear
-constraints.  It is not an OCP experiment.
+Run all commands from the repository root.
 
-## Problem
+## Paper map
 
-The benchmark solves
+| Paper item | Run | Result used by the paper |
+| --- | --- | --- |
+| Table 2: matched-accuracy time and memory | `run_matched_accuracy_timing.py`, `run_matched_accuracy_casadi.py`, `run_matched_accuracy_memory.py`, then `run_matched_accuracy_summary.py` | `matched_accuracy/summary.csv` |
+| Fig. 2: constraint activity at `n=200` | `run_constraint_activity.py` | `results/exp1_constraint_activity.pdf` |
+| Table 5: solver settings | no separate run; the settings are the arguments below | configuration recorded with each matched-accuracy run |
+| Table 6: penalty sweep at `n=200` | `run_penalty_gradient_sweep.py` | `results/exp1_penalty_gradient_sweep.csv` |
+| Table 7: forward-converged penalty | `run_matched_accuracy_timing.py --methods lapanda_base ...` | `matched_accuracy/balanced/summary.csv` |
+| Table 8: direct and aligned refinement | `post_forward_refinement/run_comparison.py` | `post_forward_refinement/results/post_forward_refinement.csv` |
+| Table 9: matched gradient errors | same runs as Table 2 | `matched_accuracy/summary.csv` |
 
-```text
-min_x  sum_i theta_0 (x_{i+1} - x_i^2)^2
-       + theta_1 (1 - x_i)^2
-       + 0.5 theta_2 ||x||^2
-s.t.   -2 <= x_i <= 2
-       x_i^2 + x_{i+1}^2 - r_i(theta)^2 <= 0
-```
+The generated PDF for Fig. 2 is copied to the paper as `figures/fig2.pdf`.
+The tables are typeset in the paper from the listed CSV files.
 
-The outer loss used for sensitivity evaluation is
+## Tables 2 and 9
 
-```text
-L(x*) = 0.5 ||x* - target||^2.
-```
+The paper uses `n = 100, 200, 500, 1000`, ten instances per size and five
+timing repetitions. The forward tolerance is `1e-3`; both backward solvers use
+`1e-2`. lapanda uses CG with automatic MINRES fallback. Explicit KKT uses
+MINRES because the original KKT system is indefinite.
 
-## File Roles
-
-```text
-problem.py
-```
-
-Defines the Rosenbrock objective, box bounds, nonlinear radius-chain
-constraints, nominal parameter, initial points, and target vector.
-
-```text
-run_scaling_study.py
-```
-
-Main paper timing experiment.  It runs lapanda and CasADi, records forward
-time, backward time, constraint violation, and lapanda errors relative to
-the CasADi baseline.
-
-```text
-casadi_sensitivity.py
-```
-
-CasADi baseline implementation.  The forward pass uses IPOPT.  The backward
-pass uses CasADi solver differentiation through `sqpmethod` with `qpoases`,
-initialized around the IPOPT forward solution.
-
-```text
-run_memory_lapanda.py
-run_memory_casadi.py
-```
-
-Separate memory measurements for lapanda and CasADi.  They use sampled RSS
-peak deltas for build and solve stages.
-
-```text
-plot_constraint_activity.py
-```
-
-Plots the representative normalized constraint value
-`sqrt(x_i^2+x_{i+1}^2)/r_i(theta)` for `N=200`.  Values below `1` are feasible;
-values near `1` are active or nearly active.
-
-```text
-post_forward_refinement/
-```
-
-Compares direct backward-only penalty scaling with the stricter alternative
-that re-solves the final ALM subproblem before differentiation.
-
-## Run Commands
-
-Timing and gradient accuracy:
+First run lapanda. This also writes the common high-accuracy KKT reference at
+the aligned point:
 
 ```powershell
-python experiments\exp1_rosenbrock_smooth_constraints\run_scaling_study.py
+python experiments\exp1_rosenbrock_smooth_constraints\run_matched_accuracy_timing.py --sizes 100 200 500 1000 --trials 10 --repetitions 5 --penalty-scales 10 --refinement-tolerances 1e-3 --backward-tol 1e-2 --methods lapanda --linear-solver cg --reference-active-tol 1e-7 --reference-at-refined-point --save-refined-reference-csv experiments\exp1_rosenbrock_smooth_constraints\matched_accuracy\reference.csv --output-dir experiments\exp1_rosenbrock_smooth_constraints\matched_accuracy\lapanda
 ```
 
-Memory:
+Then run Explicit KKT and CasADi against that reference:
 
 ```powershell
-python experiments\exp1_rosenbrock_smooth_constraints\run_memory_lapanda.py
-python experiments\exp1_rosenbrock_smooth_constraints\run_memory_casadi.py
+python experiments\exp1_rosenbrock_smooth_constraints\run_matched_accuracy_timing.py --sizes 100 200 500 1000 --trials 10 --repetitions 5 --methods explicit_kkt --backward-tol 1e-2 --linear-solver minres --reference-csv experiments\exp1_rosenbrock_smooth_constraints\matched_accuracy\reference.csv --output-dir experiments\exp1_rosenbrock_smooth_constraints\matched_accuracy\explicit
+
+python experiments\exp1_rosenbrock_smooth_constraints\run_matched_accuracy_casadi.py --reference-csv experiments\exp1_rosenbrock_smooth_constraints\matched_accuracy\reference.csv --output-dir experiments\exp1_rosenbrock_smooth_constraints\matched_accuracy\casadi
 ```
 
-Constraint figure:
+Measure memory in fresh processes and combine the results:
 
 ```powershell
-python experiments\exp1_rosenbrock_smooth_constraints\plot_constraint_activity.py
+python experiments\exp1_rosenbrock_smooth_constraints\run_matched_accuracy_memory.py --trials 10 --output-dir experiments\exp1_rosenbrock_smooth_constraints\matched_accuracy\memory
+python experiments\exp1_rosenbrock_smooth_constraints\run_matched_accuracy_summary.py
 ```
 
-Post-forward penalty refinement:
+## Figures and appendix tables
 
 ```powershell
+# Fig. 2
+python experiments\exp1_rosenbrock_smooth_constraints\run_constraint_activity.py
+
+# Table 6
+python experiments\exp1_rosenbrock_smooth_constraints\run_penalty_gradient_sweep.py
+
+# Table 7
+python experiments\exp1_rosenbrock_smooth_constraints\run_matched_accuracy_timing.py --sizes 100 200 500 1000 --trials 10 --repetitions 5 --methods lapanda_base --backward-tol 1e-2 --linear-solver cg --reference-at-base-point --save-base-reference-csv experiments\exp1_rosenbrock_smooth_constraints\matched_accuracy\base_reference.csv --output-dir experiments\exp1_rosenbrock_smooth_constraints\matched_accuracy\balanced
+
+# Table 8
 python experiments\exp1_rosenbrock_smooth_constraints\post_forward_refinement\run_comparison.py
 ```
 
-Run `run_scaling_study.py` first, because it writes
-`results/exp1_constraint_sample.npz`, which is the input for this plot.
-
-The defaults match the paper setting: warm-up size `N=20`, formal records
-starting from `N=50`, shared tolerance `1e-3`, and `10` timing trials.
-
-## Paper Result Files
-
-Keep these files in `results/`:
-
-```text
-config_scaling.json
-config_memory_lapanda.json
-config_memory_casadi.json
-exp1_scaling_raw.csv
-exp1_scaling_summary.csv
-exp1_constraint_sample.npz
-exp1_constraint_activity.png
-exp1_constraint_activity.pdf
-exp1_constraint_activity.svg
-exp1_lapanda_memory_raw.csv
-exp1_lapanda_memory_summary.csv
-exp1_casadi_memory_raw.csv
-exp1_casadi_memory_summary.csv
-post_forward_refinement/results/config.json
-post_forward_refinement/results/post_forward_refinement.csv
-```
+`problem.py` defines the benchmark. `kkt_utils.py` contains the common KKT
+reference routines, and `casadi_sensitivity.py` contains the CasADi baseline.

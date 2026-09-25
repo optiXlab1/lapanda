@@ -1,0 +1,28 @@
+{
+  "n": 200,
+  "constraint_stride": 1,
+  "trial_id": 0,
+  "penalties": [
+    1.0,
+    3.0,
+    10.0,
+    30.0,
+    100.0,
+    300.0,
+    1000.0,
+    3000.0
+  ],
+  "tol": 0.001,
+  "backward_tol": 0.01,
+  "inner_max_iter": 4000,
+  "max_outer": 1,
+  "backward_max_iter": 800,
+  "timing_repetitions": 5,
+  "reference_active_tol": 1e-07,
+  "reference_residual_tol": 1e-10,
+  "backend": "compiled",
+  "force": false,
+  "reference": "high-accuracy original-NLP KKT sensitivity solve at each lapanda solution",
+  "linear_solver": "CG with automatic MINRES fallback",
+  "timing": "mean internal solver time after one untimed warm-up per penalty"
+}

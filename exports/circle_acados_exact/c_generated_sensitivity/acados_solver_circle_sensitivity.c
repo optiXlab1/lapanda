@@ -856,16 +856,16 @@ static void circle_sensitivity_acados_create_set_opts(circle_sensitivity_solver_
 
 
     // set SQP specific options
-    double nlp_solver_tol_stat = 0.0001;
+    double nlp_solver_tol_stat = 0.002;
     ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "tol_stat", &nlp_solver_tol_stat);
 
-    double nlp_solver_tol_eq = 0.0001;
+    double nlp_solver_tol_eq = 0.002;
     ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "tol_eq", &nlp_solver_tol_eq);
 
-    double nlp_solver_tol_ineq = 0.0001;
+    double nlp_solver_tol_ineq = 0.002;
     ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "tol_ineq", &nlp_solver_tol_ineq);
 
-    double nlp_solver_tol_comp = 0.0001;
+    double nlp_solver_tol_comp = 0.002;
     ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "tol_comp", &nlp_solver_tol_comp);
 
     int nlp_solver_max_iter = 1000;

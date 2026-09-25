@@ -410,12 +410,13 @@ def _plot_timing(ax, model: dict, tail_fraction: float, show_legend: bool, ymax:
     for bars_index, bars in enumerate(all_bars):
         for bar in bars:
             height = bar.get_height()
+            label_y_offset = label_y_offsets[bars_index % len(label_y_offsets)]
             ax.annotate(
                 f"{height:.1f}",
                 xy=(bar.get_x() + bar.get_width() / 2.0, height),
                 xytext=(
                     0.0,
-                    label_y_offsets[bars_index % len(label_y_offsets)],
+                    label_y_offset,
                 ),
                 textcoords="offset points",
                 ha="center",
@@ -438,14 +439,15 @@ def _plot_timing(ax, model: dict, tail_fraction: float, show_legend: bool, ymax:
         ymax = (top + err) * headroom
     ax.set_ylim(0.0, ymax)
     if model["key"] == "cartpole":
-        ax.set_ylim(0.0, 75.0)
-        ax.set_yticks([0, 25, 50, 75])
+        ax.set_ylim(0.0, 25.0)
+        ax.set_yticks([0.0, 12.5, 25.0])
+        ax.set_yticklabels(["0", "12.5", "25"])
     elif model["key"] == "quadrotor":
-        ax.set_ylim(0.0, 100.0)
-        ax.set_yticks([0, 50, 100])
+        ax.set_ylim(0.0, 80.0)
+        ax.set_yticks([0, 40, 80])
     elif model["key"] == "robot_arm":
-        ax.set_ylim(0.0, 75.0)
-        ax.set_yticks([0, 25, 50, 75])
+        ax.set_ylim(0.0, 40.0)
+        ax.set_yticks([0, 20, 40])
     ax.grid(True, axis="y", color="#C6C6C6", linestyle="-", linewidth=0.45, alpha=0.42)
     ax.set_facecolor(PANEL_FACE)
     ax.tick_params(labelsize=TICK_FONTSIZE, top=False, right=False, length=2.0, width=0.65)

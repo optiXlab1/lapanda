@@ -213,7 +213,7 @@ def build_rectangle_case() -> ObstacleCase:
         dt=dt,
         theta=theta_value,
         variable=variable_value,
-        lower=np.zeros(horizon),
+        lower=-1e20 * np.ones(horizon),
         upper=np.zeros(horizon),
         x0=bicycle_initial_guess(start, target, horizon, dt, y_amp=0.8),
         meta={"rectangle": [-0.45, 0.45, -0.32, 0.32]},
@@ -293,6 +293,7 @@ def solve_case(case: ObstacleCase, args):
         backward_options.enable = enable_backward
         backward_options.tolerance = args.backward_tol
         backward_options.max_iterations = args.backward_max_iter
+        backward_options.linear_solver = args.linear_solver
         return solve_panda_compiled(
             str(solver.generated_oracle.library_path),
             metadata["n"],
@@ -314,6 +315,7 @@ def solve_case(case: ObstacleCase, args):
         backward_options.enable = enable_backward
         backward_options.tolerance = args.backward_tol
         backward_options.max_iterations = args.backward_max_iter
+        backward_options.linear_solver = args.linear_solver
         backward_options.constraint_penalty_scale = args.backward_constraint_penalty_scale
         backward_options.constraint_penalty_max = args.backward_constraint_penalty_max
         return solve_lapanda_compiled(
@@ -367,6 +369,8 @@ def solve_case(case: ObstacleCase, args):
         "inner_iterations_sum": int(np.sum(np.asarray(result.get("inner_iterations", []), dtype=int))),
         "backward_iterations": int(result.get("backward_iterations", -1)),
         "backward_residual": float(result.get("backward_residual", np.nan)),
+        "backward_solver_used": result.get("backward_solver_used", ""),
+        "backward_fallback_used": bool(result.get("backward_fallback_used", False)),
         **metrics(case, solution),
     }
     return row, solution
@@ -388,13 +392,14 @@ def parse_args():
     parser.add_argument("--inner-max-stable-iter", type=int, default=exp3_config.INNER_MAX_STABLE_ITER)
     parser.add_argument("--inner-tol", type=float, default=exp3_config.CIRCLE_INNER_TOL)
     parser.add_argument("--alm-max-iter", type=int, default=exp3_config.ALM_MAX_ITER)
-    parser.add_argument("--alm-tol", type=float, default=exp3_config.ALM_TOL)
+    parser.add_argument("--alm-tol", type=float, default=exp3_config.CIRCLE_ALM_TOL)
     parser.add_argument("--alm-initial-penalty", type=float, default=exp3_config.ALM_INITIAL_PENALTY)
     parser.add_argument("--alm-penalty-update-factor", type=float, default=exp3_config.ALM_PENALTY_UPDATE_FACTOR)
     parser.add_argument("--alm-max-penalty", type=float, default=exp3_config.ALM_MAX_PENALTY)
     parser.add_argument("--compute-backward", action="store_true")
     parser.add_argument("--backward-max-iter", type=int, default=exp3_config.BACKWARD_MAX_ITER)
     parser.add_argument("--backward-tol", type=float, default=exp3_config.BACKWARD_TOL)
+    parser.add_argument("--linear-solver", choices=["cg", "minres", "auto"], default="cg")
     parser.add_argument("--backward-constraint-penalty-scale", type=float, default=1.0)
     parser.add_argument("--backward-constraint-penalty-max", type=float, default=0.0)
     return parser.parse_args()

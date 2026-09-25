@@ -1,0 +1,31 @@
+{
+  "sizes": [
+    100,
+    200,
+    500,
+    1000
+  ],
+  "trials": 10,
+  "repetitions": 5,
+  "trial_start": 0,
+  "penalty_scales": [
+    10.0
+  ],
+  "refinement_tolerances": [
+    0.01
+  ],
+  "inner_tolerance": 0.001,
+  "alm_tolerance": 0.001,
+  "backward_tolerance": 0.01,
+  "linear_solver": "cg",
+  "methods": [
+    "lapanda_base"
+  ],
+  "timing": {
+    "lapanda": "warm-started refinement wall time plus matrix-free backward time",
+    "explicit_kkt": "derivative evaluation, dense KKT assembly, and MINRES solve time"
+  },
+  "reference_csv": "matched_accuracy/base_reference.csv",
+  "reference_at_refined_point": false,
+  "reference_timing": "excluded from all reported timings"
+}

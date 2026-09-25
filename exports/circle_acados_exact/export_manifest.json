@@ -4,7 +4,6 @@
   "template": "deployment_templates/circle_acados_exact",
   "files": [
     "CMakeLists.txt",
-    "README.md",
     "c_generated_code/acados_solver.pxd",
     "c_generated_code/acados_solver_circle_forward.c",
     "c_generated_code/acados_solver_circle_forward.h",
@@ -65,7 +64,6 @@
     "c_generated_sensitivity/main_circle_sensitivity.c",
     "main_acados.c",
     "ros1_circle_acados/CMakeLists.txt",
-    "ros1_circle_acados/README.md",
     "ros1_circle_acados/c_generated_code/acados_solver.pxd",
     "ros1_circle_acados/c_generated_code/acados_solver_circle_forward.c",
     "ros1_circle_acados/c_generated_code/acados_solver_circle_forward.h",

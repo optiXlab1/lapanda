@@ -220,6 +220,8 @@ static void fill_backward_params(struct backward_parameters* params, const mxArr
     params->enable = get_option(options, "backward_enable", 0.0) != 0.0;
     params->tolerance = get_option(options, "backward_tolerance", 1e-4);
     params->max_iterations = (unsigned int)get_option(options, "backward_max_iterations", 50.0);
+    params->restart = (unsigned int)get_option(options, "backward_restart", 40.0);
+    params->force_solver = PANDA_BACKWARD_SOLVER_CG;
     g_constraint_penalty_scale = get_option(options, "constraint_penalty_scale", 1.0);
     g_constraint_penalty_max = get_option(options, "constraint_penalty_max", 0.0);
 }

@@ -277,7 +277,7 @@ static int run_solver_case(
             2 * n,
             &relres,
             &iter);
-    } else {
+    } else if (solver == 1) {
         status = panda_gmres_solve(
             dense_matvec,
             &data,
@@ -287,6 +287,17 @@ static int run_solver_case(
             tol,
             3 * n,
             4,
+            &relres,
+            &iter);
+    } else {
+        status = panda_spd_solve(
+            dense_matvec,
+            &data,
+            b,
+            x,
+            n,
+            tol,
+            2 * n,
             &relres,
             &iter);
     }
@@ -325,13 +336,28 @@ int main(void)
     const unsigned int n = 10;
     real_t A[100];
     real_t b[10];
+    real_t x[10];
+    real_t relres;
+    unsigned int iter;
+    dense_matvec_data data;
 
     build_spd_system(A, b, n);
+    if (run_solver_case("CG SPD n=10", 2, A, b, n, 1e-12) == FAILURE) {
+        return 1;
+    }
     if (run_solver_case("MINRES SPD n=10", 0, A, b, n, 1e-12) == FAILURE) {
         return 1;
     }
 
     build_symmetric_indefinite_system(A, b, n);
+    data.A = A;
+    data.n = n;
+    if (panda_spd_solve(
+            dense_matvec, &data, b, x, n, 1e-12, 2 * n, &relres, &iter)
+        != FAILURE) {
+        printf("CG should reject symmetric-indefinite curvature\n");
+        return 1;
+    }
     if (run_solver_case("MINRES symmetric-indefinite n=10", 0, A, b, n, 1e-12) == FAILURE) {
         return 1;
     }

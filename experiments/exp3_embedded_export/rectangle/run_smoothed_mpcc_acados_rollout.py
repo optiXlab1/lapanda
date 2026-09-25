@@ -21,7 +21,7 @@ import numpy as np
 THIS_DIR = Path(__file__).resolve().parent
 EXP_DIR = THIS_DIR.parent
 DEFAULT_OUTDIR = (
-    EXP_DIR / "results" / "rectangle" / "smoothed_mpcc_full_rollout"
+    EXP_DIR / "results" / "rectangle" / "comparison"
 )
 _spec = importlib.util.spec_from_file_location(
     "smoothed_rectangle_problem", THIS_DIR / "smoothed_rectangle_problem.py"

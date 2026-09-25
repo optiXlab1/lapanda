@@ -1,8 +1,9 @@
 """Diagnostic sweep: gradient error versus ALM penalty.
 
-This script fixes one smooth constrained Rosenbrock instance, computes a
-CasADi solver-differentiation gradient as reference, and evaluates lapanda
-with different constant penalty values.
+This script fixes one smooth constrained Rosenbrock instance and evaluates
+lapanda with different constant penalty values. At every returned lapanda
+solution, the original-NLP KKT adjoint is solved to high accuracy and used as
+the sensitivity reference.
 """
 
 from __future__ import annotations
@@ -24,18 +25,18 @@ if str(PYTHON_DIR) not in sys.path:
     sys.path.insert(0, str(PYTHON_DIR))
 
 from experiments.common import relative_error
-from experiments.exp1_rosenbrock_smooth_constraints.casadi_sensitivity import (
-    build_casadi_sensitivity,
-    build_ipopt_solver,
-    evaluate_sensitivity,
-    solve_ipopt,
-)
+from experiments.common import write_json
 from experiments.exp1_rosenbrock_smooth_constraints.problem import (
     build_problem,
     constraint_violation_inf,
     initial_point,
     sinusoidal_target,
     theta_nominal,
+)
+from experiments.exp1_rosenbrock_smooth_constraints.kkt_utils import (
+    build_kkt_derivative_function,
+    cosine_similarity,
+    same_forward_kkt_reference,
 )
 from lapanda import AlmOptions, BackwardOptions, SolverOptions, build_solver
 
@@ -89,8 +90,9 @@ def alm_options(args: argparse.Namespace, rho: float) -> AlmOptions:
 def backward_options(args: argparse.Namespace) -> BackwardOptions:
     options = BackwardOptions()
     options.enable = True
-    options.tolerance = args.tol
+    options.tolerance = args.backward_tol
     options.max_iterations = args.backward_max_iter
+    options.linear_solver = "cg"
     options.constraint_penalty_scale = 1.0
     options.constraint_penalty_max = 0.0
     return options
@@ -108,7 +110,7 @@ def style_axis(ax) -> None:
 
 def plot_rows(rows: list[dict], out_path: Path) -> None:
     rho = np.asarray([float(row["penalty"]) for row in rows], dtype=float)
-    grad_err = np.asarray([float(row["gradient_relative_error_vs_casadi"]) for row in rows], dtype=float)
+    grad_err = np.asarray([float(row["gradient_relative_error"]) for row in rows], dtype=float)
     violation = np.asarray([float(row["constraint_violation_inf"]) for row in rows], dtype=float)
     backward_time_ms = 1e3 * np.asarray([float(row["backward_time_sec"]) for row in rows], dtype=float)
 
@@ -191,10 +193,13 @@ def main() -> None:
     parser.add_argument("--trial-id", type=int, default=0)
     parser.add_argument("--penalties", nargs="+", type=float, default=[1.0, 3.0, 10.0, 30.0, 100.0, 300.0, 1e3, 3e3])
     parser.add_argument("--tol", type=float, default=1e-3)
+    parser.add_argument("--backward-tol", type=float, default=1e-2)
     parser.add_argument("--inner-max-iter", type=int, default=4000)
     parser.add_argument("--max-outer", type=int, default=1)
     parser.add_argument("--backward-max-iter", type=int, default=800)
-    parser.add_argument("--ipopt-max-iter", type=int, default=3000)
+    parser.add_argument("--timing-repetitions", type=int, default=5)
+    parser.add_argument("--reference-active-tol", type=float, default=1e-7)
+    parser.add_argument("--reference-residual-tol", type=float, default=1e-10)
     parser.add_argument("--backend", choices=["compiled", "callback"], default="compiled")
     parser.add_argument("--force", action="store_true")
     args = parser.parse_args()
@@ -208,17 +213,9 @@ def main() -> None:
     target = sinusoidal_target(args.n)
     x0 = initial_point(args.n, 100 + args.trial_id)
 
-    ipopt_solver = build_ipopt_solver(instance, args.tol, args.ipopt_max_iter, f"exp1_penalty_ipopt_n{args.n}")
-    ipopt_solution = np.asarray(solve_ipopt(instance, ipopt_solver, x0, theta)["x"], dtype=float).reshape(-1)
-    sensitivity = build_casadi_sensitivity(
-        args.n,
-        args.constraint_stride,
-        args.tol,
-        args.ipopt_max_iter,
-        f"exp1_penalty_casadi_n{args.n}",
+    derivative_fun = build_kkt_derivative_function(
+        instance, f"exp1_penalty_reference_derivatives_n{args.n}"
     )
-    _, casadi_loss, casadi_grad_raw = evaluate_sensitivity(sensitivity, theta, target, ipopt_solution)
-    casadi_grad = np.asarray(casadi_grad_raw, dtype=float).reshape(-1)
 
     solver = build_solver(
         instance.problem,
@@ -230,21 +227,42 @@ def main() -> None:
 
     rows: list[dict] = []
     for rho in args.penalties:
-        result = solver.solve_lapanda(
-            x0,
-            theta,
-            target,
-            instance.constraint_lower,
-            instance.constraint_upper,
-            inner_solver_options=solver_options(args),
-            alm_options=alm_options(args, rho),
-            backward_options=backward_options(args),
-            multiplier0=None,
-            penalty0=None,
-            adjoint0=None,
-        )
+        def solve_once():
+            return solver.solve_lapanda(
+                x0,
+                theta,
+                target,
+                instance.constraint_lower,
+                instance.constraint_upper,
+                inner_solver_options=solver_options(args),
+                alm_options=alm_options(args, rho),
+                backward_options=backward_options(args),
+                multiplier0=None,
+                penalty0=None,
+                adjoint0=None,
+            )
+
+        solve_once()  # Untimed warm-up for dispatch and workspace initialization.
+        timed_results = [solve_once() for _ in range(args.timing_repetitions)]
+        result = timed_results[-1]
         solution = np.asarray(result["solution"], dtype=float)
         grad = np.asarray(result["grad_theta"], dtype=float)
+        reference = same_forward_kkt_reference(
+            instance,
+            derivative_fun,
+            solution,
+            theta,
+            target,
+            np.asarray(result["multipliers"], dtype=float),
+            np.asarray(result["penalties"], dtype=float),
+            args.reference_active_tol,
+        )
+        if reference["linear_residual"] > args.reference_residual_tol:
+            raise RuntimeError(
+                f"KKT reference residual is too large for rho={rho}: "
+                f"{reference['linear_residual']:.3e}"
+            )
+        reference_grad = np.asarray(reference["gradient"], dtype=float)
         row = {
             "n": args.n,
             "m": instance.m,
@@ -254,25 +272,47 @@ def main() -> None:
             "max_outer": args.max_outer,
             "tol": args.tol,
             "outer_loss_value": float(instance.outer_loss_fun(solution, target)),
-            "casadi_outer_loss_value": float(casadi_loss),
+            "reference_linear_residual": reference["linear_residual"],
             "constraint_violation_inf": constraint_violation_inf(instance, solution, theta),
-            "gradient_relative_error_vs_casadi": relative_error(grad, casadi_grad),
-            "solution_relative_error_vs_casadi": relative_error(solution, ipopt_solution),
-            "forward_time_sec": float(result.get("forward_time_sec", np.nan)),
-            "backward_time_sec": float(result.get("backward_time_sec", np.nan)),
+            "gradient_relative_error": relative_error(grad, reference_grad),
+            "gradient_cosine_similarity": cosine_similarity(grad, reference_grad),
+            "timing_repetitions": args.timing_repetitions,
+            "forward_time_sec": float(
+                np.mean([item.get("forward_time_sec", np.nan) for item in timed_results])
+            ),
+            "backward_time_sec": float(
+                np.mean([item.get("backward_time_sec", np.nan) for item in timed_results])
+            ),
+            "backward_time_sec_std": float(
+                np.std(
+                    [item.get("backward_time_sec", np.nan) for item in timed_results],
+                    ddof=1 if args.timing_repetitions > 1 else 0,
+                )
+            ),
             "forward_iterations": int(np.sum(np.asarray(result.get("inner_iterations", []), dtype=int))),
             "backward_iterations": int(result.get("backward_iterations", -1)),
+            "backward_solver_used": result.get("backward_solver_used", "unknown"),
+            "backward_fallback_used": bool(result.get("backward_fallback_used", False)),
             "final_residual": float(result.get("final_residual", np.nan)),
         }
         rows.append(row)
         print(
-            f"rho={rho:.1e} grad_err={row['gradient_relative_error_vs_casadi']:.3e} "
+            f"rho={rho:.1e} grad_err={row['gradient_relative_error']:.3e} "
             f"viol={row['constraint_violation_inf']:.3e} "
             f"bwd={1e3 * row['backward_time_sec']:.3f}ms "
             f"loss={row['outer_loss_value']:.3e}"
         )
 
     write_csv(csv_path, rows)
+    write_json(
+        out_dir / "config_penalty_gradient_sweep.json",
+        {
+            **vars(args),
+            "reference": "high-accuracy original-NLP KKT sensitivity solve at each lapanda solution",
+            "linear_solver": "CG with automatic MINRES fallback",
+            "timing": "mean internal solver time after one untimed warm-up per penalty",
+        },
+    )
     plot_rows(rows, fig_path)
     print(f"wrote {csv_path}")
     print(f"wrote {fig_path}")

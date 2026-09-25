@@ -13,7 +13,7 @@ from matplotlib.patches import Rectangle
 
 THIS_DIR = Path(__file__).resolve().parent
 EXP_DIR = THIS_DIR.parent
-RESULT_DIR = EXP_DIR / "results" / "rectangle" / "smoothed_mpcc_full_rollout"
+RESULT_DIR = EXP_DIR / "results" / "rectangle" / "comparison"
 LAPANDA_PATH = RESULT_DIR / "lapanda_smooth_rollout_30.json"
 ACADOS_PATH = RESULT_DIR / "acados_smooth_rollout_to_target.json"
 

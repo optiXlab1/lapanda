@@ -66,6 +66,7 @@ def common_alm_settings(args, model: str):
         "alm_penalty_update_factor": args.alm_penalty_update_factor or alm.penalty_update_factor,
         "alm_max_penalty": alm.max_penalty if args.alm_max_penalty is None else args.alm_max_penalty,
         "backward_max_iterations": args.backward_max_iterations or backward.max_iterations,
+        "backward_linear_solver": args.backward_linear_solver or backward.linear_solver,
         "backward_constraint_penalty_scale": (
             backward.constraint_penalty_scale
             if args.backward_constraint_penalty_scale is None
@@ -233,6 +234,11 @@ def main() -> None:
     parser.add_argument("--quadrotor-alm-initial-penalty", dest="quadrotor_alm_initial_penalty", type=float, default=None)
     parser.add_argument("--robot-arm-alm-initial-penalty", dest="robot_arm_alm_initial_penalty", type=float, default=None)
     parser.add_argument("--backward-max-iterations", type=int, default=None)
+    parser.add_argument(
+        "--backward-linear-solver",
+        choices=("auto", "cg", "minres", "gmres"),
+        default=None,
+    )
     parser.add_argument("--backward-constraint-penalty-scale", type=float, default=None)
     parser.add_argument("--backward-constraint-penalty-max", type=float, default=None)
     parser.add_argument("--safepdp-tol", type=float, default=None)

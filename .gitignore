@@ -39,6 +39,10 @@ matlab/casadi-*/
 # Local project handoff and scratch artifacts.
 PROJECT_HANDOFF.md
 _*.txt
+/tmp/
+/exports.zip
+/exports.rar
+experiments/exp2_OCPs/summary_results/*.pre_cg.*
 
 # Presentation sources and local generated solver workspaces.
 docs/*.pptx

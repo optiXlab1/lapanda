@@ -1,0 +1,5 @@
+platform,obstacle,method,success,forward_time_ms,backward_time_ms,memory_mb
+Jetson Orin Nano CPU,Circle,lapanda,true,1.76,0.16,2.16
+Jetson Orin Nano CPU,Circle,acados,true,3.27,0.24,4.52
+Jetson Orin Nano CPU,Rectangle,lapanda,true,55.5,1.13,2.60
+Jetson Orin Nano CPU,Rectangle,acados,false,,,

@@ -1,6 +1,8 @@
 #ifndef PANDA_LINEAR_SOLVER_H
 #define PANDA_LINEAR_SOLVER_H
 
+#include <stddef.h>
+
 #include "../globals/globals.h"
 
 typedef int (*panda_matvec_fun)(
@@ -48,5 +50,8 @@ int panda_gmres_solve(
     real_t* relres,
     unsigned int* iter
 );
+
+/* Peak simultaneously allocated workspace in the most recent linear solve. */
+size_t panda_linear_solver_get_last_peak_workspace_bytes(void);
 
 #endif

@@ -95,10 +95,14 @@ def export_circle(exports_root: Path, force: bool) -> None:
         speed_limit=exp3_config.CIRCLE_SPEED_LIMIT,
     )
     with tempfile.TemporaryDirectory(prefix="lapanda_circle_acados_export_") as temp:
+        from acados_template import AcadosOcpSolver
+
         temp_path = Path(temp)
-        solvers = circle.build_two_solvers(
+        forward_ocp = circle.build_ocp(
             case,
             temp_path,
+            "circle_forward",
+            False,
             "exact",
             exp3_config.CIRCLE_ACADOS_MAX_ITER,
             "MIRROR",
@@ -112,6 +116,34 @@ def export_circle(exports_root: Path, force: bool) -> None:
             exp3_config.CIRCLE_ACADOS_TOL,
             exp3_config.CIRCLE_ACADOS_TOL,
         )
+        AcadosOcpSolver.generate(
+            forward_ocp,
+            json_file=str(temp_path / "acados_forward_ocp.json"),
+            verbose=False,
+        )
+        sensitivity_ocp = circle.build_ocp(
+            case,
+            temp_path,
+            "circle_sensitivity",
+            True,
+            "exact",
+            exp3_config.CIRCLE_ACADOS_MAX_ITER,
+            "MIRROR",
+            "PARTIAL_CONDENSING_HPIPM",
+            -1e3,
+            exp3_config.CIRCLE_ACADOS_QP_MAX_ITER,
+            "MERIT_BACKTRACKING",
+            0.0,
+            exp3_config.CIRCLE_ACADOS_TOL,
+            exp3_config.CIRCLE_ACADOS_TOL,
+            exp3_config.CIRCLE_ACADOS_TOL,
+            exp3_config.CIRCLE_ACADOS_TOL,
+        )
+        AcadosOcpSolver.generate(
+            sensitivity_ocp,
+            json_file=str(temp_path / "acados_sensitivity_ocp.json"),
+            verbose=False,
+        )
         copy_generated_sources(
             temp_path / "acados_codegen_circle_forward",
             output / "c_generated_code",
@@ -120,7 +152,6 @@ def export_circle(exports_root: Path, force: bool) -> None:
             temp_path / "acados_codegen_circle_sensitivity",
             output / "c_generated_sensitivity",
         )
-        del solvers
 
     ros = output / "ros1_circle_acados"
     shutil.copytree(output / "c_generated_code", ros / "c_generated_code")
@@ -134,12 +165,18 @@ def export_circle(exports_root: Path, force: bool) -> None:
             "hessian": "EXACT",
             "horizon": exp3_config.CIRCLE_HORIZON,
             "dynamics": "discrete bicycle",
+            "dt": case.dt,
+            "wheelbase": circle.WHEELBASE,
             "speed_bounds": [
                 -exp3_config.CIRCLE_SPEED_LIMIT,
                 exp3_config.CIRCLE_SPEED_LIMIT,
             ],
             "steering_bounds_rad": [-float(circle.STEER_LIMIT), float(circle.STEER_LIMIT)],
             "tolerance": {"nlp_tol_reference": exp3_config.CIRCLE_ACADOS_TOL},
+            "maximum_iterations": {
+                "qp": exp3_config.CIRCLE_ACADOS_QP_MAX_ITER,
+                "nlp": exp3_config.CIRCLE_ACADOS_MAX_ITER,
+            },
             "runtime_overrides": {
                 "standalone_env": "ACADOS_TOL",
                 "ros_private_param": "acados_tol",
@@ -181,13 +218,25 @@ def export_rectangle(exports_root: Path, force: bool) -> None:
         steer_limit=exp3_config.RECTANGLE_STEER_LIMIT,
     )
     with tempfile.TemporaryDirectory(prefix="lapanda_rectangle_acados_export_") as temp:
+        from acados_template import AcadosOcpSolver
+
         temp_path = Path(temp)
-        solvers = rectangle.build_acados_solvers(case, temp_path, settings)
+        forward_ocp = rectangle.build_acados_ocp(
+            case,
+            "rect_margin_forward",
+            temp_path,
+            False,
+            settings,
+        )
+        AcadosOcpSolver.generate(
+            forward_ocp,
+            json_file=str(temp_path / "acados_forward_ocp.json"),
+            verbose=False,
+        )
         copy_generated_sources(
             temp_path / "acados_codegen_rect_margin_forward",
             output / "c_generated_code",
         )
-        del solvers
 
     ros = output / "ros1_rectangle_acados"
     shutil.copytree(output / "c_generated_code", ros / "c_generated_code")
@@ -200,6 +249,8 @@ def export_rectangle(exports_root: Path, force: bool) -> None:
             "hessian": "GAUSS_NEWTON",
             "horizon": exp3_config.RECTANGLE_HORIZON,
             "dynamics": "discrete bicycle",
+            "dt": case.dt,
+            "wheelbase": rectangle.WHEELBASE,
             "speed_bounds": [
                 -exp3_config.RECTANGLE_SPEED_LIMIT,
                 exp3_config.RECTANGLE_SPEED_LIMIT,
@@ -209,6 +260,10 @@ def export_rectangle(exports_root: Path, force: bool) -> None:
                 exp3_config.RECTANGLE_STEER_LIMIT,
             ],
             "tolerance": {"nlp_tol_reference": exp3_config.RECTANGLE_ACADOS_TOL},
+            "maximum_iterations": {
+                "qp": exp3_config.RECTANGLE_ACADOS_QP_MAX_ITER,
+                "nlp": exp3_config.RECTANGLE_ACADOS_MAX_ITER,
+            },
             "expected_status": 2,
             "notes": (
                 "The hard-constraint Gauss--Newton baseline is expected to reach "
@@ -238,13 +293,21 @@ def copy_root_files(exports_root: Path) -> None:
             destination.chmod(
                 destination.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH
             )
+    validator = exports_root / "validate_export_settings.py"
+    root_files = sorted(
+        source.name for source in (TEMPLATE_ROOT / "exports_root").iterdir()
+    )
+    readme = exports_root / "README.md"
+    if readme.is_file():
+        root_files.append(readme.name)
+    if validator.is_file():
+        root_files.append(validator.name)
+    root_files.sort()
     write_json(
         exports_root / "export_manifest.json",
         {
             "generator": "experiments/exp3_embedded_export/export_acados_bundles.py",
-            "root_files": sorted(
-                source.name for source in (TEMPLATE_ROOT / "exports_root").iterdir()
-            ),
+            "root_files": root_files,
             "bundles": [
                 "circle_ros_mpc",
                 "circle_acados_exact",

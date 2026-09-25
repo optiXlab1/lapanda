@@ -1,0 +1,30 @@
+{
+  "experiment": "exp2_same_forward_explicit_kkt_accuracy",
+  "models": [
+    "cartpole",
+    "quadrotor",
+    "robot_arm"
+  ],
+  "protocols": [
+    "open_loop",
+    "closed_loop"
+  ],
+  "open_epochs": [
+    0,
+    200,
+    400,
+    800
+  ],
+  "closed_epochs": [
+    0,
+    125,
+    250,
+    500
+  ],
+  "open_scenarios": 32,
+  "closed_steps": 50,
+  "active_tolerance": 1e-08,
+  "rank_tolerance": 1e-10,
+  "reference_residual_tolerance": 1e-09,
+  "reference": "original-NLP active-set KKT adjoint at the unchanged lapanda forward point, using the forward-converged shifted multiplier"
+}

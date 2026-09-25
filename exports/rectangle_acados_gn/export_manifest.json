@@ -4,7 +4,6 @@
   "template": "deployment_templates/rectangle_acados_gn",
   "files": [
     "CMakeLists.txt",
-    "README.md",
     "c_generated_code/acados_solver.pxd",
     "c_generated_code/acados_solver_rect_margin_forward.c",
     "c_generated_code/acados_solver_rect_margin_forward.h",
@@ -30,7 +29,6 @@
     "c_generated_code/rect_margin_forward_p_global_precompute_fun.h",
     "main_acados.c",
     "ros1_rectangle_acados/CMakeLists.txt",
-    "ros1_rectangle_acados/README.md",
     "ros1_rectangle_acados/c_generated_code/acados_solver.pxd",
     "ros1_rectangle_acados/c_generated_code/acados_solver_rect_margin_forward.c",
     "ros1_rectangle_acados/c_generated_code/acados_solver_rect_margin_forward.h",

@@ -5,6 +5,8 @@
   "hessian": "GAUSS_NEWTON",
   "horizon": 20,
   "dynamics": "discrete bicycle",
+  "dt": 0.12,
+  "wheelbase": 0.45,
   "speed_bounds": [
     -1.0,
     1.0
@@ -14,7 +16,11 @@
     0.7
   ],
   "tolerance": {
-    "nlp_tol_reference": 1e-05
+    "nlp_tol_reference": 0.0001
+  },
+  "maximum_iterations": {
+    "qp": 50,
+    "nlp": 1000
   },
   "expected_status": 2,
   "notes": "The hard-constraint Gauss--Newton baseline is expected to reach the SQP iteration limit on the current rectangular problem."

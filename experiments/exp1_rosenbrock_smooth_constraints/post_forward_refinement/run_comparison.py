@@ -25,18 +25,16 @@ if str(PYTHON_DIR) not in sys.path:
     sys.path.insert(0, str(PYTHON_DIR))
 
 from experiments.common import git_commit_hash, machine_info, relative_error, write_json
-from experiments.exp1_rosenbrock_smooth_constraints.casadi_sensitivity import (
-    build_casadi_sensitivity,
-    build_ipopt_solver,
-    evaluate_sensitivity,
-    solve_ipopt,
-)
 from experiments.exp1_rosenbrock_smooth_constraints.problem import (
     build_problem,
     constraint_violation_inf,
     initial_point,
     sinusoidal_target,
     theta_nominal,
+)
+from experiments.exp1_rosenbrock_smooth_constraints.kkt_utils import (
+    build_kkt_derivative_function,
+    same_forward_kkt_reference,
 )
 from lapanda import AlmOptions, BackwardOptions, SolverOptions, build_solver
 
@@ -49,10 +47,13 @@ def write_csv(path: Path, rows: list[dict]) -> None:
         writer.writerows(rows)
 
 
-def inner_options(args: argparse.Namespace) -> SolverOptions:
+def inner_options(
+    args: argparse.Namespace,
+    tolerance: float | None = None,
+) -> SolverOptions:
     options = SolverOptions()
     options.max_iterations = args.inner_max_iter
-    options.tolerance = args.tol
+    options.tolerance = args.tol if tolerance is None else tolerance
     options.buffer_size = 10
     options.max_stable_iter = 120
     options.verbose = 0
@@ -75,7 +76,7 @@ def forward_alm_options(args: argparse.Namespace) -> AlmOptions:
 def refined_subproblem_options(args: argparse.Namespace) -> AlmOptions:
     options = AlmOptions()
     options.max_iterations = 1
-    options.tolerance = args.tol
+    options.tolerance = args.refinement_tol
     options.initial_penalty = args.initial_penalty * args.penalty_scale
     options.penalty_update_factor = 1.0
     options.max_penalty = args.max_penalty
@@ -92,8 +93,10 @@ def backward_options(
 ) -> BackwardOptions:
     options = BackwardOptions()
     options.enable = enable
-    options.tolerance = args.tol
+    options.tolerance = args.backward_tol
     options.max_iterations = args.backward_max_iter
+    options.linear_solver = args.linear_solver
+    options.restart = args.restart
     options.constraint_penalty_scale = penalty_scale
     options.constraint_penalty_max = args.max_penalty
     return options
@@ -128,7 +131,7 @@ def solve_aligned_refinement(solver, instance, base, theta, target, args, *, ena
         target,
         instance.constraint_lower,
         instance.constraint_upper,
-        inner_solver_options=inner_options(args),
+        inner_solver_options=inner_options(args, args.refinement_tol),
         alm_options=refined_subproblem_options(args),
         backward_options=backward_options(args, penalty_scale=1.0, enable=enable_backward),
         multiplier0=np.asarray(base["multipliers"], dtype=float),
@@ -139,23 +142,33 @@ def solve_aligned_refinement(solver, instance, base, theta, target, args, *, ena
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--sizes", nargs="+", type=int, default=[50, 100, 200, 500, 1000])
+    parser.add_argument("--sizes", nargs="+", type=int, default=[100, 200, 500, 1000])
     parser.add_argument("--trial-id", type=int, default=0)
     parser.add_argument("--constraint-stride", type=int, default=1)
     parser.add_argument("--penalty-scale", type=float, default=10.0)
     parser.add_argument("--tol", type=float, default=1e-3)
+    parser.add_argument("--refinement-tol", type=float, default=1e-3)
+    parser.add_argument("--backward-tol", type=float, default=1e-2)
     parser.add_argument("--inner-max-iter", type=int, default=4000)
     parser.add_argument("--max-outer", type=int, default=20)
     parser.add_argument("--initial-penalty", type=float, default=2.0)
     parser.add_argument("--penalty-update-factor", type=float, default=10.0)
     parser.add_argument("--max-penalty", type=float, default=1e8)
     parser.add_argument("--backward-max-iter", type=int, default=800)
-    parser.add_argument("--ipopt-max-iter", type=int, default=3000)
+    parser.add_argument(
+        "--linear-solver",
+        choices=["auto", "cg", "minres", "gmres"],
+        default="cg",
+    )
+    parser.add_argument("--restart", type=int, default=40)
+    parser.add_argument("--reference-active-tol", type=float, default=1e-7)
+    parser.add_argument("--reference-residual-tol", type=float, default=1e-10)
     parser.add_argument("--backend", choices=["compiled", "callback"], default="compiled")
     parser.add_argument("--force", action="store_true")
+    parser.add_argument("--output-dir", type=Path, default=None)
     args = parser.parse_args()
 
-    output_dir = Path(__file__).resolve().parent / "results"
+    output_dir = args.output_dir or (Path(__file__).resolve().parent / "results")
     output_path = output_dir / "post_forward_refinement.csv"
     config_path = output_dir / "config.json"
     theta = theta_nominal()
@@ -170,13 +183,19 @@ def main() -> None:
             "constraint_stride": args.constraint_stride,
             "penalty_scale": args.penalty_scale,
             "tolerance": args.tol,
+            "refinement_tolerance": args.refinement_tol,
+            "backward_tolerance": args.backward_tol,
             "inner_max_iterations": args.inner_max_iter,
             "alm_max_iterations": args.max_outer,
             "initial_penalty": args.initial_penalty,
             "penalty_update_factor": args.penalty_update_factor,
             "max_penalty": args.max_penalty,
             "backward_max_iterations": args.backward_max_iter,
-            "ipopt_max_iterations": args.ipopt_max_iter,
+            "backward_linear_solver": args.linear_solver,
+            "backward_restart": args.restart,
+            "reference_active_tolerance": args.reference_active_tol,
+            "reference_residual_tolerance": args.reference_residual_tol,
+            "reference": "high-accuracy original-NLP KKT sensitivity solve at the corresponding lapanda solution",
             "backend": args.backend,
             "git_commit": git_commit_hash(),
             "machine": machine_info(),
@@ -188,25 +207,9 @@ def main() -> None:
         target = sinusoidal_target(n)
         x0 = initial_point(n, 100 + args.trial_id)
 
-        ipopt_solver = build_ipopt_solver(
-            instance,
-            args.tol,
-            args.ipopt_max_iter,
-            f"exp1_refine_ipopt_n{n}",
+        derivative_fun = build_kkt_derivative_function(
+            instance, f"exp1_refine_reference_derivatives_n{n}"
         )
-        ipopt_solution = np.asarray(
-            solve_ipopt(instance, ipopt_solver, x0, theta)["x"],
-            dtype=float,
-        ).reshape(-1)
-        sensitivity = build_casadi_sensitivity(
-            n,
-            args.constraint_stride,
-            args.tol,
-            args.ipopt_max_iter,
-            f"exp1_refine_casadi_n{n}",
-        )
-        _, _, casadi_grad_raw = evaluate_sensitivity(sensitivity, theta, target, ipopt_solution)
-        casadi_grad = np.asarray(casadi_grad_raw, dtype=float).reshape(-1)
 
         solver = build_solver(
             instance.problem,
@@ -267,6 +270,30 @@ def main() -> None:
         base_grad = np.asarray(base["grad_theta"], dtype=float)
         aligned_grad = np.asarray(aligned["grad_theta"], dtype=float)
         base_solution = np.asarray(base["solution"], dtype=float)
+        base_reference = same_forward_kkt_reference(
+            instance,
+            derivative_fun,
+            base_solution,
+            theta,
+            target,
+            np.asarray(base["multipliers"], dtype=float),
+            np.asarray(base["penalties"], dtype=float),
+            args.reference_active_tol,
+        )
+        aligned_reference = same_forward_kkt_reference(
+            instance,
+            derivative_fun,
+            aligned_solution,
+            theta,
+            target,
+            np.asarray(aligned_forward["multipliers"], dtype=float),
+            np.asarray(aligned_forward["penalties"], dtype=float),
+            args.reference_active_tol,
+        )
+        if max(base_reference["linear_residual"], aligned_reference["linear_residual"]) > args.reference_residual_tol:
+            raise RuntimeError(f"KKT reference residual is too large for n={n}")
+        base_reference_gradient = np.asarray(base_reference["gradient"], dtype=float)
+        aligned_reference_gradient = np.asarray(aligned_reference["gradient"], dtype=float)
         direct_base_mismatch = relative_error(direct_solution, base_solution)
         if direct_base_mismatch > 1e-10:
             raise RuntimeError(
@@ -286,19 +313,34 @@ def main() -> None:
             "trial_id": args.trial_id,
             "base_penalty_max": float(np.max(base_penalties)),
             "refined_penalty_max": float(np.max(args.penalty_scale * base_penalties)),
-            "base_gradient_relative_error_vs_casadi": relative_error(base_grad, casadi_grad),
+            "base_gradient_relative_error": relative_error(base_grad, base_reference_gradient),
+            "base_gradient_cosine_similarity": float(
+                np.dot(base_grad, base_reference_gradient)
+                / (np.linalg.norm(base_grad) * np.linalg.norm(base_reference_gradient))
+            ),
+            "base_reference_residual": base_reference["linear_residual"],
             "base_constraint_violation_inf": constraint_violation_inf(
                 instance, base_solution, theta
             ),
+            "base_forward_time_sec": float(base["forward_time_sec"]),
             "base_backward_time_sec": float(base["backward_time_sec"]),
-            "direct_gradient_relative_error_vs_casadi": relative_error(direct_grad, casadi_grad),
+            "direct_gradient_relative_error": relative_error(direct_grad, base_reference_gradient),
+            "direct_gradient_cosine_similarity": float(
+                np.dot(direct_grad, base_reference_gradient)
+                / (np.linalg.norm(direct_grad) * np.linalg.norm(base_reference_gradient))
+            ),
             "direct_constraint_violation_inf": constraint_violation_inf(
                 instance, direct_solution, theta
             ),
             "direct_backward_time_sec": float(direct["backward_time_sec"]),
             "direct_backward_iterations": int(direct["backward_iterations"]),
             "direct_backward_residual": float(direct["backward_residual"]),
-            "aligned_gradient_relative_error_vs_casadi": relative_error(aligned_grad, casadi_grad),
+            "aligned_gradient_relative_error": relative_error(aligned_grad, aligned_reference_gradient),
+            "aligned_gradient_cosine_similarity": float(
+                np.dot(aligned_grad, aligned_reference_gradient)
+                / (np.linalg.norm(aligned_grad) * np.linalg.norm(aligned_reference_gradient))
+            ),
+            "aligned_reference_residual": aligned_reference["linear_residual"],
             "aligned_constraint_violation_inf": constraint_violation_inf(
                 instance, aligned_solution, theta
             ),
@@ -307,6 +349,14 @@ def main() -> None:
             "aligned_backward_time_sec": float(aligned["backward_time_sec"]),
             "aligned_total_refinement_time_sec": float(
                 aligned_refinement_solve_time_sec + aligned["backward_time_sec"]
+            ),
+            "aligned_effective_forward_time_sec": float(
+                base["forward_time_sec"] + aligned_refinement_solve_time_sec
+            ),
+            "aligned_effective_total_time_sec": float(
+                base["forward_time_sec"]
+                + aligned_refinement_solve_time_sec
+                + aligned["backward_time_sec"]
             ),
             "aligned_forward_iterations": int(
                 np.sum(np.asarray(aligned_forward["inner_iterations"], dtype=int))
@@ -323,10 +373,10 @@ def main() -> None:
         rows.append(row)
         print(
             f"n={n}: rho={row['base_penalty_max']:.3e} -> {row['refined_penalty_max']:.3e}; "
-            f"base err={row['base_gradient_relative_error_vs_casadi']:.3e}; "
-            f"direct err={row['direct_gradient_relative_error_vs_casadi']:.3e}, "
+            f"base err={row['base_gradient_relative_error']:.3e}; "
+            f"direct err={row['direct_gradient_relative_error']:.3e}, "
             f"bwd={1e3 * row['direct_backward_time_sec']:.2f} ms; "
-            f"aligned err={row['aligned_gradient_relative_error_vs_casadi']:.3e}, "
+            f"aligned err={row['aligned_gradient_relative_error']:.3e}, "
             f"refine-solve={1e3 * row['aligned_refinement_solve_wall_time_sec']:.2f} ms, "
             f"bwd={1e3 * row['aligned_backward_time_sec']:.2f} ms, "
             f"total={1e3 * row['aligned_total_refinement_time_sec']:.2f} ms"

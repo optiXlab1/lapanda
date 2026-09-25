@@ -97,6 +97,7 @@ def backward_options(
     *,
     config: BackwardDefaults = DEFAULT_BACKWARD_CONFIG,
     max_iterations: int | None = None,
+    linear_solver: str | None = None,
     constraint_penalty_scale: float | None = None,
     constraint_penalty_max: float | None = None,
 ):
@@ -104,6 +105,7 @@ def backward_options(
     options.enable = enable
     options.tolerance = tol
     options.max_iterations = config.max_iterations if max_iterations is None else max_iterations
+    options.linear_solver = config.linear_solver if linear_solver is None else linear_solver
     options.constraint_penalty_scale = (
         config.constraint_penalty_scale if constraint_penalty_scale is None else constraint_penalty_scale
     )
@@ -184,6 +186,9 @@ def write_run_config(out_dir: Path, name: str, args, instance, extra=None):
     alm_max_penalty = getattr(args, "alm_max_penalty", DEFAULT_ALM_CONFIG.max_penalty)
     backward_tolerance = getattr(args, "alm_tol", 1e-3)
     backward_max_iterations = getattr(args, "backward_max_iterations", DEFAULT_BACKWARD_CONFIG.max_iterations)
+    backward_linear_solver = getattr(
+        args, "backward_linear_solver", DEFAULT_BACKWARD_CONFIG.linear_solver
+    )
     backward_constraint_penalty_scale = getattr(
         args,
         "backward_constraint_penalty_scale",
@@ -205,6 +210,7 @@ def write_run_config(out_dir: Path, name: str, args, instance, extra=None):
         "alm_max_penalty": alm_max_penalty,
         "backward_tolerance": backward_tolerance,
         "backward_max_iterations": backward_max_iterations,
+        "backward_linear_solver": backward_linear_solver,
         "backward_constraint_penalty_scale": backward_constraint_penalty_scale,
         "backward_constraint_penalty_max": backward_constraint_penalty_max,
     }
@@ -289,6 +295,11 @@ def solve_alm_once(
             compute_backward,
             args.alm_tol,
             max_iterations=getattr(args, "backward_max_iterations", DEFAULT_BACKWARD_CONFIG.max_iterations),
+            linear_solver=getattr(
+                args,
+                "backward_linear_solver",
+                DEFAULT_BACKWARD_CONFIG.linear_solver,
+            ),
             constraint_penalty_scale=getattr(
                 args,
                 "backward_constraint_penalty_scale",
@@ -454,6 +465,7 @@ def solve_lapanda(
     alm_initial_penalty: float | None = None,
     alm_penalty_update_factor: float | None = None,
     backward_max_iterations: int | None = None,
+    backward_linear_solver: str | None = None,
     backward_constraint_penalty_scale: float | None = None,
     backward_constraint_penalty_max: float | None = None,
     multiplier0=None,
@@ -481,6 +493,7 @@ def solve_lapanda(
             compute_backward,
             alm_tol,
             max_iterations=backward_max_iterations,
+            linear_solver=backward_linear_solver,
             constraint_penalty_scale=backward_constraint_penalty_scale,
             constraint_penalty_max=backward_constraint_penalty_max,
         ),

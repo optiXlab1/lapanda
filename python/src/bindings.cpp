@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <limits>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -21,6 +22,7 @@
 extern "C" {
 #include "../../include/optimizer.h"
 #include "../../alm/alm.h"
+#include "../../panda/panda_linear_solver.h"
 }
 
 namespace py = pybind11;
@@ -39,6 +41,8 @@ struct BackwardOptions {
     bool enable = false;
     double tolerance = 1e-4;
     unsigned int max_iterations = 50;
+    unsigned int restart = 40;
+    std::string linear_solver = "cg";
     double constraint_penalty_scale = 1.0;
     double constraint_penalty_max = 0.0;
 };
@@ -211,6 +215,101 @@ py::array_t<double> array_from_vector(const std::vector<double>& values)
         buf(i) = values[static_cast<size_t>(i)];
     }
     return out;
+}
+
+panda_backward_solver_type backward_solver_from_name(const std::string& name)
+{
+    if (name == "auto") {
+        return PANDA_BACKWARD_SOLVER_AUTO;
+    }
+    if (name == "minres") {
+        return PANDA_BACKWARD_SOLVER_MINRES;
+    }
+    if (name == "gmres") {
+        return PANDA_BACKWARD_SOLVER_GMRES;
+    }
+    if (name == "cg") {
+        return PANDA_BACKWARD_SOLVER_CG;
+    }
+    throw std::runtime_error("linear_solver must be one of: auto, minres, gmres, cg");
+}
+
+const char* backward_solver_name(panda_backward_solver_type solver)
+{
+    if (solver == PANDA_BACKWARD_SOLVER_CG) return "cg";
+    if (solver == PANDA_BACKWARD_SOLVER_MINRES) return "minres";
+    if (solver == PANDA_BACKWARD_SOLVER_GMRES) return "gmres";
+    return "auto";
+}
+
+struct DenseOperator {
+    const double* data;
+    unsigned int n;
+};
+
+int dense_matvec(const real_t* x, real_t* y, void* user_data)
+{
+    DenseOperator* op = static_cast<DenseOperator*>(user_data);
+    for (unsigned int row = 0; row < op->n; ++row) {
+        double value = 0.0;
+        const double* row_data = op->data + static_cast<size_t>(row) * op->n;
+        for (unsigned int col = 0; col < op->n; ++col) {
+            value += row_data[col] * x[col];
+        }
+        y[row] = value;
+    }
+    return SUCCESS;
+}
+
+py::dict solve_dense_minres(
+    py::array_t<double, py::array::c_style | py::array::forcecast> matrix,
+    py::array_t<double, py::array::c_style | py::array::forcecast> rhs,
+    double tolerance,
+    unsigned int max_iterations)
+{
+    py::buffer_info matrix_info = matrix.request();
+    py::buffer_info rhs_info = rhs.request();
+    const size_t n = static_cast<size_t>(rhs_info.size);
+
+    if (matrix_info.ndim != 2 ||
+        matrix_info.shape[0] != static_cast<py::ssize_t>(n) ||
+        matrix_info.shape[1] != static_cast<py::ssize_t>(n)) {
+        throw std::runtime_error("dense matrix must be square and match rhs");
+    }
+    if (n > static_cast<size_t>(std::numeric_limits<unsigned int>::max())) {
+        throw std::runtime_error("dense system is too large for the native MINRES interface");
+    }
+
+    DenseOperator op{
+        static_cast<const double*>(matrix_info.ptr),
+        static_cast<unsigned int>(n),
+    };
+    std::vector<double> solution(n, 0.0);
+    double relative_residual = 0.0;
+    unsigned int iterations = 0;
+    int status = FAILURE;
+    {
+        py::gil_scoped_release release;
+        status = panda_minres_solve(
+            dense_matvec,
+            &op,
+            static_cast<const double*>(rhs_info.ptr),
+            solution.data(),
+            static_cast<unsigned int>(n),
+            tolerance,
+            max_iterations,
+            &relative_residual,
+            &iterations);
+    }
+
+    py::dict result;
+    result["solution"] = array_from_vector(solution);
+    result["status"] = status;
+    result["relative_residual"] = relative_residual;
+    result["iterations"] = iterations;
+    result["peak_workspace_bytes"] =
+        py::int_(panda_linear_solver_get_last_peak_workspace_bytes());
+    return result;
 }
 
 std::vector<double> scaled_constraint_penalties(const double* penalties, unsigned int ncon)
@@ -912,6 +1011,8 @@ py::dict solve_panda_impl(
     problem.backward_params.enable = backward_options.enable ? TRUE : FALSE;
     problem.backward_params.tolerance = backward_options.tolerance;
     problem.backward_params.max_iterations = backward_options.max_iterations;
+    problem.backward_params.restart = backward_options.restart;
+    problem.backward_params.force_solver = backward_solver_from_name(backward_options.linear_solver);
     problem.trace = NULL;
     problem.trace_context = NULL;
 
@@ -952,6 +1053,12 @@ py::dict solve_panda_impl(
         result["grad_theta"] = array_from_vector(grad_theta);
         result["backward_iterations"] = backward_info.iterations;
         result["backward_residual"] = backward_info.final_residual;
+        result["backward_peak_workspace_bytes"] =
+            py::int_(panda_backward_get_last_peak_workspace_bytes());
+        result["backward_solver_used"] =
+            backward_solver_name(panda_backward_get_last_solver_used());
+        result["backward_fallback_used"] =
+            panda_backward_get_last_fallback_used() != FALSE;
     }
 
     optimizer_cleanup();
@@ -1004,6 +1111,8 @@ py::dict solve_panda_compiled_impl(
     problem.backward_params.enable = backward_options.enable ? TRUE : FALSE;
     problem.backward_params.tolerance = backward_options.tolerance;
     problem.backward_params.max_iterations = backward_options.max_iterations;
+    problem.backward_params.restart = backward_options.restart;
+    problem.backward_params.force_solver = backward_solver_from_name(backward_options.linear_solver);
     problem.trace = NULL;
     problem.trace_context = NULL;
 
@@ -1041,6 +1150,12 @@ py::dict solve_panda_compiled_impl(
         result["grad_theta"] = array_from_vector(grad_theta);
         result["backward_iterations"] = backward_info.iterations;
         result["backward_residual"] = backward_info.final_residual;
+        result["backward_peak_workspace_bytes"] =
+            py::int_(panda_backward_get_last_peak_workspace_bytes());
+        result["backward_solver_used"] =
+            backward_solver_name(panda_backward_get_last_solver_used());
+        result["backward_fallback_used"] =
+            panda_backward_get_last_fallback_used() != FALSE;
     }
 
     optimizer_cleanup();
@@ -1094,6 +1209,8 @@ py::dict solve_alm_impl(
     problem.backward_params.enable = backward_options.enable ? TRUE : FALSE;
     problem.backward_params.tolerance = backward_options.tolerance;
     problem.backward_params.max_iterations = backward_options.max_iterations;
+    problem.backward_params.restart = backward_options.restart;
+    problem.backward_params.force_solver = backward_solver_from_name(backward_options.linear_solver);
 
     alm_parameters params;
     params.max_iterations = alm_options.max_iterations;
@@ -1172,6 +1289,12 @@ py::dict solve_alm_impl(
         result["grad_theta"] = array_from_vector(grad_theta);
         result["backward_iterations"] = backward_info.iterations;
         result["backward_residual"] = backward_info.final_residual;
+        result["backward_peak_workspace_bytes"] =
+            py::int_(panda_backward_get_last_peak_workspace_bytes());
+        result["backward_solver_used"] =
+            backward_solver_name(panda_backward_get_last_solver_used());
+        result["backward_fallback_used"] =
+            panda_backward_get_last_fallback_used() != FALSE;
     }
     return result;
 }
@@ -1245,6 +1368,8 @@ py::dict solve_alm_compiled_impl(
     problem.backward_params.enable = backward_options.enable ? TRUE : FALSE;
     problem.backward_params.tolerance = backward_options.tolerance;
     problem.backward_params.max_iterations = backward_options.max_iterations;
+    problem.backward_params.restart = backward_options.restart;
+    problem.backward_params.force_solver = backward_solver_from_name(backward_options.linear_solver);
 
     alm_parameters params;
     params.max_iterations = alm_options.max_iterations;
@@ -1322,6 +1447,12 @@ py::dict solve_alm_compiled_impl(
         result["grad_theta"] = array_from_vector(grad_theta);
         result["backward_iterations"] = backward_info.iterations;
         result["backward_residual"] = backward_info.final_residual;
+        result["backward_peak_workspace_bytes"] =
+            py::int_(panda_backward_get_last_peak_workspace_bytes());
+        result["backward_solver_used"] =
+            backward_solver_name(panda_backward_get_last_solver_used());
+        result["backward_fallback_used"] =
+            panda_backward_get_last_fallback_used() != FALSE;
     }
     return result;
 }
@@ -1343,8 +1474,16 @@ PYBIND11_MODULE(_lapanda, m)
         .def_readwrite("enable", &BackwardOptions::enable)
         .def_readwrite("tolerance", &BackwardOptions::tolerance)
         .def_readwrite("max_iterations", &BackwardOptions::max_iterations)
+        .def_readwrite("restart", &BackwardOptions::restart)
+        .def_readwrite("linear_solver", &BackwardOptions::linear_solver)
         .def_readwrite("constraint_penalty_scale", &BackwardOptions::constraint_penalty_scale)
         .def_readwrite("constraint_penalty_max", &BackwardOptions::constraint_penalty_max);
+
+    m.def("solve_dense_minres", &solve_dense_minres,
+          py::arg("matrix"),
+          py::arg("rhs"),
+          py::arg("tolerance"),
+          py::arg("max_iterations"));
 
     py::class_<AlmOptions>(m, "AlmOptions")
         .def(py::init<>())

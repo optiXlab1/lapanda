@@ -36,7 +36,7 @@ public:
         private_nh_.param("inner_max_iterations", inner_max_iterations_, 2000);
         private_nh_.param("inner_tolerance", inner_tolerance_, 1e-1);
         private_nh_.param("alm_max_iterations", alm_max_iterations_, 100);
-        private_nh_.param("alm_tolerance", alm_tolerance_, 1e-4);
+        private_nh_.param("alm_tolerance", alm_tolerance_, 2e-3);
         private_nh_.param("initial_penalty", initial_penalty_, 10000.0);
         private_nh_.param("penalty_update_factor", penalty_update_factor_, 10.0);
         private_nh_.param("compute_backward", compute_backward_, false);
@@ -107,6 +107,8 @@ private:
         backward.enable = compute_backward_ ? 1 : 0;
         backward.tolerance = 1e-3;
         backward.max_iterations = 200;
+        backward.restart = 40;
+        backward.force_solver = PANDA_BACKWARD_SOLVER_CG;
 
         alm_problem problem{};
         lapanda_static_init_alm_problem(

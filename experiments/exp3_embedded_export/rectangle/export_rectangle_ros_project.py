@@ -88,7 +88,7 @@ int main(void)
     fill_problem_data(theta, variable);
 
     for (i = 0; i < LAPANDA_NCON; ++i) {
-        constraint_lower[i] = -1.0e20;
+        constraint_lower[i] = 0.0;
         constraint_upper[i] = 0.0;
     }
 
@@ -101,6 +101,8 @@ int main(void)
     backward_params.enable = 1;
     backward_params.tolerance = 1e-3;
     backward_params.max_iterations = 200;
+    backward_params.restart = 40;
+    backward_params.force_solver = PANDA_BACKWARD_SOLVER_CG;
 
     lapanda_static_init_alm_problem(
         &problem,
@@ -110,7 +112,7 @@ int main(void)
         &backward_params);
 
     params.max_iterations = 100;
-    params.tolerance = 1e-5;
+    params.tolerance = 1e-4;
     params.initial_penalty = 10000.0;
     params.penalty_update_factor = 10.0;
     params.max_penalty = 0.0;
@@ -159,6 +161,8 @@ int main(void)
     printf("backward_time_sec=%.17g\n", info.backward_time_sec);
     printf("backward_iterations=%u\n", backward_info.iterations);
     printf("backward_residual=%.17g\n", backward_info.final_residual);
+    printf("backward_solver_used=%d\n", (int)panda_backward_get_last_solver_used());
+    printf("backward_fallback_used=%u\n", (unsigned int)panda_backward_get_last_fallback_used());
     printf("solution_0=%.17g\n", solution[0]);
     printf("solution_1=%.17g\n", solution[1]);
     return 0;
@@ -205,7 +209,7 @@ public:
         private_nh_.param("inner_max_iterations", inner_max_iterations_, 2000);
         private_nh_.param("inner_tolerance", inner_tolerance_, 1e-3);
         private_nh_.param("alm_max_iterations", alm_max_iterations_, 100);
-        private_nh_.param("alm_tolerance", alm_tolerance_, 1e-5);
+        private_nh_.param("alm_tolerance", alm_tolerance_, 1e-4);
         private_nh_.param("initial_penalty", initial_penalty_, 10000.0);
         private_nh_.param("penalty_update_factor", penalty_update_factor_, 10.0);
 
@@ -216,7 +220,7 @@ public:
         solution_.fill(0.0);
         multipliers_.fill(0.0);
         for (std::size_t i = 0; i < kNCon; ++i) {
-            constraint_lower_[i] = -1.0e20;
+            constraint_lower_[i] = 0.0;
             constraint_upper_[i] = 0.0;
         }
 
@@ -286,6 +290,8 @@ private:
         backward.enable = compute_backward_ ? 1 : 0;
         backward.tolerance = 1e-3;
         backward.max_iterations = 200;
+        backward.restart = 40;
+        backward.force_solver = PANDA_BACKWARD_SOLVER_CG;
 
         alm_problem problem{};
         lapanda_static_init_alm_problem(
@@ -578,6 +584,14 @@ def main() -> None:
                 "backend": "exported C",
                 "horizon": exp3_config.RECTANGLE_HORIZON,
                 "dynamics": "discrete bicycle",
+                "dt": exp3_config.RECTANGLE_DT,
+                "wheelbase": rectangle_alm.WHEELBASE,
+                "initial_state": list(exp3_config.START_STATE),
+                "target_state": list(exp3_config.TARGET_STATE),
+                "theta": [
+                    *exp3_config.RECTANGLE_THETA_PREFIX,
+                    *exp3_config.RECTANGLE_EXPORT_MARGINS,
+                ],
                 "speed_bounds": [
                     -exp3_config.RECTANGLE_SPEED_LIMIT,
                     exp3_config.RECTANGLE_SPEED_LIMIT,
@@ -591,6 +605,12 @@ def main() -> None:
                     "inner_tolerance": exp3_config.RECTANGLE_INNER_TOL,
                     "backward_tolerance": 1e-3,
                 },
+                "maximum_iterations": {
+                    "panda": exp3_config.INNER_MAX_ITER,
+                    "alm": exp3_config.ALM_MAX_ITER,
+                    "backward": exp3_config.BACKWARD_MAX_ITER,
+                },
+                "backward_solver": "CG",
                 "notes": (
                     "Rectangle hard-constraint margin problem, final tolerance "
                     "setting used for ROS/Raspberry Pi export."

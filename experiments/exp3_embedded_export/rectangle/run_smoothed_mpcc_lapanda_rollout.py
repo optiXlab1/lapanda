@@ -13,7 +13,7 @@ import numpy as np
 THIS_DIR = Path(__file__).resolve().parent
 EXP_DIR = THIS_DIR.parent
 REPO_ROOT = THIS_DIR.parents[2]
-OUTDIR = EXP_DIR / "results" / "rectangle" / "smoothed_mpcc_full_rollout"
+OUTDIR = EXP_DIR / "results" / "rectangle" / "comparison"
 
 _spec = importlib.util.spec_from_file_location(
     "smoothed_rectangle_problem", THIS_DIR / "smoothed_rectangle_problem.py"
@@ -90,6 +90,7 @@ def main() -> None:
     backward_options.enable = True
     backward_options.tolerance = 1e-3
     backward_options.max_iterations = 200
+    backward_options.linear_solver = "cg"
 
     def solve(initial_guess: np.ndarray, state: np.ndarray, multipliers, enable_backward: bool):
         backward_options.enable = enable_backward
@@ -150,6 +151,8 @@ def main() -> None:
                 "inner": int(np.sum(result.get("inner_iterations", []))),
                 "backward_iterations": int(result.get("backward_iterations", 0)),
                 "residual": float(result.get("backward_residual", np.nan)),
+                "backward_solver_used": result.get("backward_solver_used", ""),
+                "backward_fallback_used": bool(result.get("backward_fallback_used", False)),
                 "distance_to_target": float(np.linalg.norm(state[:2] - diag.TARGET[:2])),
             }
         )

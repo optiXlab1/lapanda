@@ -109,7 +109,7 @@ def style_axis(ax):
         spine.set_color("#20232A")
 
 
-def save_paper_style_figure(outdir: Path, case, series: list[tuple[str, np.ndarray, str, str]]) -> None:
+def save_summary_figure(outdir: Path, case, series: list[tuple[str, np.ndarray, str, str]]) -> None:
     plt.rcParams.update(
         {
             "font.family": "sans-serif",
@@ -303,7 +303,7 @@ def main():
                 json.load(f)
         series.append((acados_label, acados_u, BLUE, SECONDARY_DASH))
 
-    save_paper_style_figure(outdir, case, series[1:])
+    save_summary_figure(outdir, case, series[1:])
 
     fig, ax = plt.subplots(figsize=(5.4, 4.4))
     center = np.asarray(case.meta["obstacle"], dtype=float)

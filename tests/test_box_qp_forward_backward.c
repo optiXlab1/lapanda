@@ -222,6 +222,8 @@ int main(void)
     problem.backward_params.enable = TRUE;
     problem.backward_params.tolerance = 1e-12;
     problem.backward_params.max_iterations = 20;
+    problem.backward_params.restart = 20;
+    problem.backward_params.force_solver = PANDA_BACKWARD_SOLVER_AUTO;
     problem.trace = NULL;
     problem.trace_context = NULL;
 

@@ -61,7 +61,8 @@ class AlmDefaults:
 @dataclass(frozen=True)
 class BackwardDefaults:
     max_iterations: int = 800
-    constraint_penalty_scale: float = 10.0
+    linear_solver: str = "cg"
+    constraint_penalty_scale: float = 1.0
     constraint_penalty_max: float = 1e6
 
 
