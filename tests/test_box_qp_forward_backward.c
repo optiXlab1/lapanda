@@ -217,6 +217,7 @@ int main(void)
     problem.solver_params.tolerance = 1e-9;
     problem.solver_params.buffer_size = 5;
     problem.solver_params.max_stable_iter = 0;
+    problem.solver_params.minimum_gamma = 1e-8;
     problem.solver_params.verbose = FALSE;
 
     problem.backward_params.enable = TRUE;

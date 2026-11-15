@@ -9,6 +9,7 @@
 
 static struct optimizer_problem* problem; /* data related to the problem */
 static unsigned char initialized = FALSE;
+static unsigned char forward_initialized = FALSE;
 static real_t g_final_gamma;
 static optimizer_solve_info g_forward_info;
 static optimizer_solve_info g_backward_info;
@@ -25,7 +26,7 @@ int solve_problem(
     real_t current_residual;
     int status;
 
-    if (initialized == FALSE) {
+    if (initialized == FALSE || forward_initialized == FALSE) {
         return FAILURE;
     }
 
@@ -52,7 +53,7 @@ int solve_problem(
             problem->trace(problem->trace_context, i_panda, current_residual);
         }
 
-        if (current_residual > MACHINE_ACCURACY) {
+        if (isfinite(current_residual) && current_residual >= 0.0) {
             save_solution(solution);
         }
     }
@@ -107,7 +108,13 @@ int optimizer_init(struct optimizer_problem* problem_)
     params.n = problem->oracle.n;
     params.alpha = 1.0 - PROXIMAL_GRAD_DESC_SAFETY_VALUE;
     params.beta = 0.5;
-    params.minimum_gamma = 1e-6;
+    if (!isfinite(problem->solver_params.minimum_gamma) ||
+        problem->solver_params.minimum_gamma < 0.0) {
+        function_evaluator_cleanup();
+        return FAILURE;
+    }
+    params.minimum_gamma = problem->solver_params.minimum_gamma > 0.0
+        ? problem->solver_params.minimum_gamma : 1e-6;
     params.max_backtracks = FBE_LINESEARCH_MAX_ITERATIONS;
     params.lbfgs_memory = problem->solver_params.buffer_size;
     params.enable_gamma_enlarge =
@@ -122,6 +129,32 @@ int optimizer_init(struct optimizer_problem* problem_)
     }
 
     initialized = TRUE;
+    forward_initialized = TRUE;
+    return SUCCESS;
+}
+
+int optimizer_init_backward(struct optimizer_problem* problem_)
+{
+    if (initialized == TRUE) {
+        optimizer_cleanup();
+    }
+    problem = problem_;
+    if (function_evaluator_init(problem) == FAILURE) {
+        return FAILURE;
+    }
+    g_forward_info.iterations = 0;
+    g_forward_info.final_residual = 0.0;
+    g_backward_info.iterations = 0;
+    g_backward_info.final_residual = 0.0;
+    forward_initialized = FALSE;
+    initialized = TRUE;
+    return SUCCESS;
+}
+
+int optimizer_release_forward_workspace(void)
+{
+    panda_forward_cleanup();
+    forward_initialized = FALSE;
     return SUCCESS;
 }
 
@@ -141,6 +174,21 @@ int solve_backward(
         u_star,
         NULL,
         dLdtheta);
+}
+
+int optimizer_prepare_backward(
+    const real_t* theta,
+    const real_t* variable,
+    real_t gamma
+)
+{
+    if (initialized == FALSE || theta == NULL || variable == NULL ||
+        !isfinite(gamma) || gamma <= 0.0) {
+        return FAILURE;
+    }
+    function_evaluator_set_parameters(theta, variable);
+    save_gamma(gamma);
+    return SUCCESS;
 }
 
 int solve_backward_with_options(
@@ -206,6 +254,7 @@ int optimizer_cleanup(void)
     panda_forward_cleanup();
     function_evaluator_cleanup();
     initialized = FALSE;
+    forward_initialized = FALSE;
     return SUCCESS;
 }
 

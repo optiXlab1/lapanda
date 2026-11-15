@@ -1,5 +1,6 @@
 add_library(ALM_lib STATIC
     alm.c
+    alm_kkt.c
 )
 
 target_link_libraries(ALM_lib PUBLIC PANDA_lib)

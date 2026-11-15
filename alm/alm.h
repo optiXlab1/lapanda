@@ -75,7 +75,21 @@ typedef struct {
     real_t penalty;
     real_t forward_time_sec;
     real_t backward_time_sec;
+    real_t final_gamma;
 } alm_info;
+
+int alm_backward_at_solution(
+    const alm_problem* problem,
+    const real_t* solution,
+    const real_t* multipliers,
+    const real_t* penalties,
+    const real_t* theta,
+    const real_t* variable,
+    real_t final_gamma,
+    real_t* dLdtheta,
+    optimizer_solve_info* backward_info,
+    real_t* backward_time_sec
+);
 
 int alm_solve(
     const alm_problem* problem,

@@ -11,8 +11,8 @@ import numpy as np
 
 
 ROOT = Path(__file__).resolve().parents[2]
-RESULTS_DIR = ROOT / "experiments" / "exp2_OCPs" / "summary_results"
-DEFAULT_DATA = RESULTS_DIR / "nonlinear_horizon_scaling_lapanda_turbompc_gpu.csv"
+RESULTS_DIR = ROOT / "runs" / "figures"
+DEFAULT_DATA = ROOT / "results" / "horizon" / "summary.csv"
 OUTPUT_STEM = "nonlinear_horizon_scaling_lapanda_turbompc_gpu"
 HORIZONS = tuple(range(10, 201, 20))
 

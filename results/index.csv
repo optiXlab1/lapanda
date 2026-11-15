@@ -1,0 +1,15 @@
+experiment,script,data
+Rosenbrock backward comparison,experiments/paper/run_rosen.py,results/rosenbrock/main
+OCP learning,experiments/paper/train.py,results/learning
+Penalty/tolerance/conditioning,experiments/paper/run_conditioning_sensitivity_v2.py,results/sensitivity
+PANDA/PANOC,experiments/paper/run_inner.py,results/inner_solvers
+CG/MINRES preconditioning,experiments/paper/run_preconditioning.py,results/preconditioning
+Embedded obstacle avoidance,experiments/exp3_embedded_export,results/embedded
+Discretization scaling,experiments/exp2_OCPs/run_nonlinear_horizon_scaling.py,results/horizon
+OCP batch-gradient checks,experiments/paper/run_accuracy.py,results/learning/gradient_summary.csv
+Learning figure,experiments/paper/plot_learning.py,results/learning
+MPC timing figure,experiments/paper/plot_mpc.py,results/mpc
+Smooth rectangular obstacle,experiments/paper/run_smooth_rectangle_retest.py,results/embedded/smooth_rectangle
+Penalty diagnostic,experiments/paper/run_penalty_sweep.py,results/rosenbrock/penalty_sweep.csv
+Forward residual study,experiments/paper/run_forward_residual_sensitivity.py,results/sensitivity
+Rosenbrock result figure,experiments/paper/plot_rosen.py,results/rosenbrock/main

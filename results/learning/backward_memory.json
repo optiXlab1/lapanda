@@ -1,0 +1,98 @@
+[
+  {
+    "model": "cartpole",
+    "protocol": "open",
+    "method": "c_final",
+    "peak_KiB": 4.7783203125,
+    "samples": 3,
+    "repeats": 3
+  },
+  {
+    "model": "cartpole",
+    "protocol": "open",
+    "method": "c_kkt",
+    "peak_KiB": 5.3759765625,
+    "samples": 3,
+    "repeats": 3
+  },
+  {
+    "model": "cartpole",
+    "protocol": "closed",
+    "method": "c_final",
+    "peak_KiB": 4.7783203125,
+    "samples": 3,
+    "repeats": 3
+  },
+  {
+    "model": "cartpole",
+    "protocol": "closed",
+    "method": "c_kkt",
+    "peak_KiB": 5.4228515625,
+    "samples": 3,
+    "repeats": 3
+  },
+  {
+    "model": "quadrotor",
+    "protocol": "open",
+    "method": "c_final",
+    "peak_KiB": 14.8515625,
+    "samples": 3,
+    "repeats": 3
+  },
+  {
+    "model": "quadrotor",
+    "protocol": "open",
+    "method": "c_kkt",
+    "peak_KiB": 15.53125,
+    "samples": 3,
+    "repeats": 3
+  },
+  {
+    "model": "quadrotor",
+    "protocol": "closed",
+    "method": "c_final",
+    "peak_KiB": 14.8515625,
+    "samples": 3,
+    "repeats": 3
+  },
+  {
+    "model": "quadrotor",
+    "protocol": "closed",
+    "method": "c_kkt",
+    "peak_KiB": 16.625,
+    "samples": 3,
+    "repeats": 3
+  },
+  {
+    "model": "robot_arm",
+    "protocol": "open",
+    "method": "c_final",
+    "peak_KiB": 13.4296875,
+    "samples": 3,
+    "repeats": 3
+  },
+  {
+    "model": "robot_arm",
+    "protocol": "open",
+    "method": "c_kkt",
+    "peak_KiB": 13.609375,
+    "samples": 3,
+    "repeats": 3
+  },
+  {
+    "model": "robot_arm",
+    "protocol": "closed",
+    "method": "c_final",
+    "peak_KiB": 14.0859375,
+    "samples": 3,
+    "repeats": 3
+  },
+  {
+    "model": "robot_arm",
+    "protocol": "closed",
+    "method": "c_kkt",
+    "peak_KiB": 14.9375,
+    "samples": 3,
+    "repeats": 3
+  }
+]

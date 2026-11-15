@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import csv
-import importlib.util
-import sys
 import time
 from pathlib import Path
 
@@ -12,43 +10,6 @@ import casadi as ca
 import numpy as np
 import scipy.sparse as sp
 import scipy.sparse.linalg as spla
-
-REPO_ROOT = Path(__file__).resolve().parents[2]
-PYTHON_DIR = REPO_ROOT / "python"
-for path in (REPO_ROOT, PYTHON_DIR):
-    if str(path) not in sys.path:
-        sys.path.insert(0, str(path))
-
-
-def load_local_lapanda() -> None:
-    package_dir = PYTHON_DIR / "lapanda"
-    extension_paths = sorted(package_dir.glob("_lapanda*.pyd"))
-    if not extension_paths:
-        extension_paths = sorted(package_dir.glob("_lapanda*.so"))
-    if not extension_paths:
-        raise ImportError(f"cannot find the local lapanda extension in {package_dir}")
-    extension_spec = importlib.util.spec_from_file_location(
-        "lapanda._lapanda", extension_paths[0]
-    )
-    if extension_spec is None or extension_spec.loader is None:
-        raise ImportError(f"cannot load the lapanda extension from {extension_paths[0]}")
-    extension = importlib.util.module_from_spec(extension_spec)
-    sys.modules["lapanda._lapanda"] = extension
-    extension_spec.loader.exec_module(extension)
-
-    spec = importlib.util.spec_from_file_location(
-        "lapanda",
-        package_dir / "__init__.py",
-        submodule_search_locations=[str(package_dir)],
-    )
-    if spec is None or spec.loader is None:
-        raise ImportError(f"cannot load lapanda from {package_dir}")
-    module = importlib.util.module_from_spec(spec)
-    sys.modules["lapanda"] = module
-    spec.loader.exec_module(module)
-
-
-load_local_lapanda()
 
 from lapanda import solve_dense_minres
 

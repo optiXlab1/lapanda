@@ -269,15 +269,15 @@ def save_summary_figure(outdir: Path, case, series: list[tuple[str, np.ndarray, 
 
 def main():
     exp = EXP_DIR
-    outdir = exp / "results" / "circle" / "summary"
+    outdir = exp.parents[1] / "runs" / "figures" / "circle"
     outdir.mkdir(parents=True, exist_ok=True)
 
     radius = float(sys.argv[1]) if len(sys.argv) > 1 else exp3_config.CIRCLE_RADIUS
     center_y = float(sys.argv[2]) if len(sys.argv) > 2 else exp3_config.CIRCLE_CENTER_Y
     horizon = int(sys.argv[3]) if len(sys.argv) > 3 else exp3_config.CIRCLE_HORIZON
     speed_limit = float(sys.argv[4]) if len(sys.argv) > 4 else exp3_config.CIRCLE_SPEED_LIMIT
-    alm_dir = sys.argv[5] if len(sys.argv) > 5 else str(exp3_config.CIRCLE_RESULT_DIR.relative_to(exp))
-    acados_dir = sys.argv[6] if len(sys.argv) > 6 else str(exp3_config.CIRCLE_ACADOS_RESULT_DIR.relative_to(exp))
+    alm_dir = sys.argv[5] if len(sys.argv) > 5 else str(exp.parents[1] / "results" / "embedded" / "device" / "circle" / "lapanda")
+    acados_dir = sys.argv[6] if len(sys.argv) > 6 else str(exp.parents[1] / "results" / "embedded" / "device" / "circle" / "acados")
     label_suffix = f"r={radius:g}"
 
     case = build_circle_case(horizon, speed_limit)

@@ -212,6 +212,7 @@ static void fill_solver_params(struct solver_parameters* params, const mxArray* 
     params->tolerance = get_option(options, "solver_tolerance", 1e-4);
     params->buffer_size = (unsigned int)get_option(options, "solver_buffer_size", 10.0);
     params->max_stable_iter = (unsigned int)get_option(options, "solver_max_stable_iter", 0.0);
+    params->minimum_gamma = get_option(options, "solver_minimum_gamma", 1e-6);
     params->verbose = get_option(options, "verbose", 0.0) != 0.0;
 }
 

@@ -308,7 +308,7 @@ def main() -> None:
         out_dir / "config_penalty_gradient_sweep.json",
         {
             **vars(args),
-            "reference": "high-accuracy original-NLP KKT sensitivity solve at each lapanda solution",
+            "reference": "Same-point active-KKT adjoint at each returned primal-dual point",
             "linear_solver": "CG with automatic MINRES fallback",
             "timing": "mean internal solver time after one untimed warm-up per penalty",
         },

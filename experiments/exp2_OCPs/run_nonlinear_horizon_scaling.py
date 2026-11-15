@@ -30,14 +30,7 @@ from experiments.exp2_OCPs.problem_bank import build_quadrotor_problem
 
 
 DEFAULT_HORIZONS = tuple(range(10, 201, 10))
-DEFAULT_DATA_DIR = (
-    ROOT
-    / "experiments"
-    / "exp2_OCPs"
-    / "summary_results"
-    / "nonlinear_horizon_scaling_mixed_warm_start"
-    / "raw"
-)
+DEFAULT_DATA_DIR = ROOT / "runs" / "horizon"
 
 
 def parse_args() -> argparse.Namespace:

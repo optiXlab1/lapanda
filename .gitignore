@@ -52,3 +52,7 @@ experiments/**/results/**/codegen*/
 experiments/**/results/**/*_ocp.json
 experiments/exp2_OCPs/summary_results/_smoke_*/
 exports/**/Makefile
+
+# New experiment outputs and generated libraries.
+/runs/
+**/cache/

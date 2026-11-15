@@ -210,7 +210,7 @@ int panda_spd_solve(
     }
 
     bnorm = vector_norm2(b, (int)n);
-    if (bnorm < MACHINE_ACCURACY) {
+    if (bnorm == 0.0) {
         if (relres != NULL) *relres = 0.0;
         if (iter != NULL) *iter = 0;
         free(r);
@@ -258,12 +258,16 @@ int panda_spd_solve(
         rnorm = sqrt(rr_new) / bnorm;
 
         if (rnorm <= tol) {
+            /* A small recursive residual is not by itself an acceptance
+             * certificate. Reuse Ap for the true original-system residual. */
+            rnorm = compute_relative_residual(matvec, user_data, b, x, Ap, n, bnorm);
+            if (rnorm < 0.0) goto fail;
             if (relres != NULL) *relres = rnorm;
             if (iter != NULL) *iter = k + 1;
             free(r);
             free(p);
             free(Ap);
-            return SUCCESS;
+            return rnorm <= tol ? SUCCESS : FAILURE;
         }
 
         beta = rr_new / rr;
@@ -288,194 +292,71 @@ fail:
     return FAILURE;
 }
 
-int panda_minres_solve(
-    panda_matvec_fun matvec,
-    void* user_data,
-    const real_t* b,
-    real_t* x,
-    unsigned int n,
-    real_t tol,
-    unsigned int max_iter,
-    real_t* relres,
-    unsigned int* iter
-)
+/* Paige--Saunders Lanczos/Givens short recurrence. Eight O(n) vectors;
+ * acceptance always checks the explicit, unscaled relative residual. */
+static real_t minres_stable_norm(const real_t* x, unsigned int n)
 {
-    real_t* V;
-    real_t* Tbar;
-    real_t* y;
-    real_t* work;
-    real_t* x_trial;
-    real_t bnorm;
-    real_t beta_prev;
-    real_t beta_next;
-    real_t alpha;
-    real_t hval;
-    real_t rnorm;
+    real_t scale=0.0,ssq=1.0;
     unsigned int i;
-    unsigned int j;
-    unsigned int k;
-    unsigned int rows;
-    int status;
-
-    V = NULL;
-    Tbar = NULL;
-    y = NULL;
-    work = NULL;
-    x_trial = NULL;
-    g_last_peak_workspace_bytes = 0;
-    g_persistent_workspace_bytes = 0;
-
-    if (n == 0) {
-        if (relres != NULL) *relres = 0.0;
-        if (iter != NULL) *iter = 0;
-        return SUCCESS;
+    for(i=0;i<n;++i) {
+        real_t a=fabs(x[i]);
+        if(a!=0.0) {
+            if(scale<a) {real_t r=scale/a;ssq=1.0+ssq*r*r;scale=a;}
+            else {real_t r=a/scale;ssq+=r*r;}
+        }
     }
+    return scale*sqrt(ssq);
+}
 
-    if (max_iter == 0) {
-        max_iter = n;
+int panda_minres_solve(
+    panda_matvec_fun matvec,void* user_data,const real_t* b,real_t* x,
+    unsigned int n,real_t tol,unsigned int max_iter,real_t* relres,unsigned int* iter)
+{
+    real_t *buffer,*r1,*r2,*v,*y,*w,*w1,*w2,*tmp;
+    real_t bn,beta,oldb,cs,sn,dbar,epsln,phibar,rr;
+    unsigned int i,k,its=0;
+    int status=FAILURE;
+    g_last_peak_workspace_bytes=0;g_persistent_workspace_bytes=0;
+    if(relres!=NULL) *relres=0.0;
+    if(iter!=NULL) *iter=0;
+    if(n==0) return SUCCESS;
+    if(matvec==NULL||b==NULL||x==NULL||!(tol>0.0)) return FAILURE;
+    set_zero(x,n);bn=minres_stable_norm(b,n);
+    if(bn==0.0) return SUCCESS;
+    buffer=(real_t*)calloc((size_t)8*n,sizeof(real_t));
+    if(buffer==NULL) return FAILURE;
+    g_last_peak_workspace_bytes=(size_t)8*n*sizeof(real_t);
+    r1=buffer;r2=r1+n;v=r2+n;y=v+n;w=y+n;w1=w+n;w2=w1+n;tmp=w2+n;
+    for(i=0;i<n;++i) r2[i]=b[i];
+    beta=bn;oldb=0.0;cs=-1.0;sn=0.0;dbar=0.0;epsln=0.0;phibar=bn;rr=1.0;
+    for(k=0;k<max_iter;++k) {
+        real_t alpha,oldeps,delta,gbar,gamma,phi;
+        if(!(beta>0.0)) break;
+        for(i=0;i<n;++i) v[i]=r2[i]/beta;
+        if(matvec(v,y,user_data)==FAILURE) goto done;
+        if(k>0) for(i=0;i<n;++i) y[i]-=(beta/oldb)*r1[i];
+        alpha=inner_product(v,y,(int)n);
+        for(i=0;i<n;++i) y[i]-=(alpha/beta)*r2[i];
+        for(i=0;i<n;++i) {r1[i]=r2[i];r2[i]=y[i];}
+        oldb=beta;beta=minres_stable_norm(r2,n);
+        oldeps=epsln;delta=cs*dbar+sn*alpha;gbar=sn*dbar-cs*alpha;
+        epsln=sn*beta;dbar=-cs*beta;gamma=hypot(gbar,beta);
+        if(!(gamma>DBL_MIN)) break;
+        cs=gbar/gamma;sn=beta/gamma;phi=cs*phibar;phibar*=sn;
+        for(i=0;i<n;++i) {w1[i]=w2[i];w2[i]=w[i];w[i]=(v[i]-oldeps*w1[i]-delta*w2[i])/gamma;x[i]+=phi*w[i];}
+        its=k+1;
+        if(fabs(phibar)<=tol*bn||beta<=DBL_MIN||its==max_iter) {
+            rr=compute_relative_residual(matvec,user_data,b,x,tmp,n,bn);
+            if(rr<0.0) goto done;
+            if(rr<=tol) {status=SUCCESS;break;}
+        }
     }
-
-    bnorm = vector_norm2(b, (int)n);
-    if (bnorm < MACHINE_ACCURACY) {
-        for (i = 0; i < n; ++i) {
-            x[i] = 0.0;
-        }
-        if (relres != NULL) *relres = 0.0;
-        if (iter != NULL) *iter = 0;
-        return SUCCESS;
-    }
-
-    V = (real_t*)malloc(sizeof(real_t) * (max_iter + 1) * n);
-    if (V == NULL) goto fail;
-    Tbar = (real_t*)malloc(sizeof(real_t) * (max_iter + 1) * max_iter);
-    if (Tbar == NULL) goto fail;
-    y = (real_t*)malloc(sizeof(real_t) * max_iter);
-    if (y == NULL) goto fail;
-    work = (real_t*)malloc(sizeof(real_t) * n);
-    if (work == NULL) goto fail;
-    x_trial = (real_t*)malloc(sizeof(real_t) * n);
-    if (x_trial == NULL) goto fail;
-
-    g_persistent_workspace_bytes = sizeof(real_t) * (
-        (size_t)(max_iter + 1) * n
-        + (size_t)(max_iter + 1) * max_iter
-        + max_iter
-        + 2u * n);
-    g_last_peak_workspace_bytes = g_persistent_workspace_bytes;
-
-    set_zero(Tbar, (max_iter + 1) * max_iter);
-    for (i = 0; i < n; ++i) {
-        x[i] = 0.0;
-        V[i] = b[i] / bnorm;
-    }
-
-    beta_prev = 0.0;
-    rnorm = 1.0;
-    status = FAILURE;
-
-    for (k = 0; k < max_iter; ++k) {
-        if (matvec(&V[k * n], work, user_data) == FAILURE) {
-            goto fail;
-        }
-
-        if (k > 0) {
-            for (i = 0; i < n; ++i) {
-                work[i] -= beta_prev * V[(k - 1) * n + i];
-            }
-        }
-
-        alpha = inner_product(&V[k * n], work, (int)n);
-        for (i = 0; i < n; ++i) {
-            work[i] -= alpha * V[k * n + i];
-        }
-
-        /*
-         * Full reorthogonalization keeps the stored Lanczos basis reliable
-         * for this validation-oriented implementation.
-         */
-        for (j = 0; j <= k; ++j) {
-            hval = inner_product(work, &V[j * n], (int)n);
-            for (i = 0; i < n; ++i) {
-                work[i] -= hval * V[j * n + i];
-            }
-        }
-
-        beta_next = vector_norm2(work, (int)n);
-
-        Tbar[k * max_iter + k] = alpha;
-        if (k > 0) {
-            Tbar[(k - 1) * max_iter + k] = beta_prev;
-            Tbar[k * max_iter + (k - 1)] = beta_prev;
-        }
-        Tbar[(k + 1) * max_iter + k] = beta_next;
-
-        if (beta_next > MACHINE_ACCURACY && k + 1 < max_iter + 1) {
-            for (i = 0; i < n; ++i) {
-                V[(k + 1) * n + i] = work[i] / beta_next;
-            }
-        }
-
-        rows = k + 2;
-        if (gmres_least_squares(Tbar, bnorm, y, rows, k + 1, max_iter) == FAILURE) {
-            goto fail;
-        }
-
-        for (i = 0; i < n; ++i) {
-            x_trial[i] = 0.0;
-        }
-
-        for (j = 0; j <= k; ++j) {
-            for (i = 0; i < n; ++i) {
-                x_trial[i] += y[j] * V[j * n + i];
-            }
-        }
-
-        rnorm = compute_relative_residual(
-            matvec,
-            user_data,
-            b,
-            x_trial,
-            work,
-            n,
-            bnorm);
-        if (rnorm < 0.0) goto fail;
-
-        for (i = 0; i < n; ++i) {
-            x[i] = x_trial[i];
-        }
-
-        if (rnorm <= tol) {
-            status = SUCCESS;
-            k++;
-            break;
-        }
-
-        if (beta_next <= MACHINE_ACCURACY) {
-            status = (rnorm <= tol) ? SUCCESS : FAILURE;
-            k++;
-            break;
-        }
-
-        beta_prev = beta_next;
-    }
-
-    if (relres != NULL) *relres = rnorm;
-    if (iter != NULL) *iter = k;
-
-    free(V);
-    free(Tbar);
-    free(y);
-    free(work);
-    free(x_trial);
-    return status;
-
-fail:
-    free(V);
-    free(Tbar);
-    free(y);
-    free(work);
-    free(x_trial);
-    return FAILURE;
+    rr=compute_relative_residual(matvec,user_data,b,x,tmp,n,bn);
+    if(rr>=0.0&&rr<=tol) status=SUCCESS;
+done:
+    if(relres!=NULL) *relres=rr;
+    if(iter!=NULL) *iter=its;
+    free(buffer);return status;
 }
 
 int panda_gmres_solve(

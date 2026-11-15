@@ -13,9 +13,10 @@ from matplotlib.patches import Rectangle
 
 THIS_DIR = Path(__file__).resolve().parent
 EXP_DIR = THIS_DIR.parent
-RESULT_DIR = EXP_DIR / "results" / "rectangle" / "comparison"
-LAPANDA_PATH = RESULT_DIR / "lapanda_smooth_rollout_30.json"
-ACADOS_PATH = RESULT_DIR / "acados_smooth_rollout_to_target.json"
+RESULT_DIR = EXP_DIR.parents[1] / "runs" / "figures" / "smooth_rectangle"
+DATA_DIR = EXP_DIR.parents[1] / "results" / "embedded" / "smooth_rectangle"
+LAPANDA_PATH = DATA_DIR / "repeat_0_lapanda.json"
+ACADOS_PATH = DATA_DIR / "repeat_0_acados.json"
 
 BASE_RECTANGLE = np.array([-0.35, 0.35, -0.22, 0.22], dtype=float)
 MARGINS = np.array([0.12, 0.12, 0.01, 0.22], dtype=float)

@@ -14,6 +14,8 @@ try:
         SolverOptions,
         solve_lapanda as solve_lapanda_callback,
         solve_lapanda_compiled,
+        backward_lapanda_compiled_at_solution,
+        _retain_oracle_library,
         solve_panda,
         solve_panda_compiled,
     )
@@ -25,6 +27,7 @@ except ImportError as exc:  # pragma: no cover
 
     AlmOptions = BackwardOptions = SolverOptions = None
     solve_lapanda_callback = solve_lapanda_compiled = solve_panda = solve_panda_compiled = _missing_extension
+    backward_lapanda_compiled_at_solution = _missing_extension
 from .casadi_interface import CasadiProblem, generate_oracle
 from .codegen import DEFAULT_ORACLE_NAME, GeneratedOracle, generate_compiled_oracle
 
@@ -115,6 +118,14 @@ class CompiledSolver(CallbackSolver):
             cmake_generator=cmake_generator,
         )
         self.compiled_oracle = self.generated_oracle
+        # The C++ entry points create per-call workspaces, while this handle
+        # prevents repeated dynamic loading/unloading of the same oracle code.
+        # It belongs to the solver, so separate solver objects retain separate
+        # lifetimes without a process-global unbounded library cache.
+        self._library_handle = (
+            _retain_oracle_library(str(self.generated_oracle.library_path))
+            if self.generated_oracle.library_path is not None else None
+        )
 
     def solve_panda(
         self,
@@ -194,6 +205,34 @@ class CompiledSolver(CallbackSolver):
         )
 
     solve_alm = solve_lapanda
+
+    def backward_lapanda_at_solution(
+        self,
+        solution,
+        theta,
+        variable,
+        constraint_lower,
+        constraint_upper,
+        multipliers,
+        penalties,
+        final_gamma,
+        inner_solver_options: Optional[SolverOptions] = None,
+        backward_options: Optional[BackwardOptions] = None,
+    ):
+        if self.generated_oracle.library_path is None:
+            raise RuntimeError("compiled oracle was generated without a built library")
+        if inner_solver_options is None:
+            inner_solver_options = SolverOptions()
+        if backward_options is None:
+            backward_options = BackwardOptions()
+        metadata = self.generated_oracle.metadata
+        return backward_lapanda_compiled_at_solution(
+            str(self.generated_oracle.library_path),
+            metadata["n"], metadata["ntheta"], metadata["nvar"], metadata["ncon"],
+            metadata["box_lower"], metadata["box_upper"],
+            solution, theta, variable, constraint_lower, constraint_upper,
+            multipliers, penalties, final_gamma, inner_solver_options, backward_options,
+        )
 
 
 def build_solver(

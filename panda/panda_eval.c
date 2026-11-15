@@ -41,7 +41,7 @@ static real_t build_shift_and_get_norm(const real_t* x, real_t* x_shift)
  * Estimate a local Lipschitz constant by finite differencing the gradient:
  * L ≈ ||grad f(x + delta) - grad f(x)|| / ||delta||.
  */
-static real_t estimate_local_lipschitz(const real_t* x, const real_t* df_x)
+static real_t estimate_local_lipschitz(const real_t* x)
 {
     real_t denominator;
     real_t numerator;
@@ -49,9 +49,11 @@ static real_t estimate_local_lipschitz(const real_t* x, const real_t* df_x)
     denominator = build_shift_and_get_norm(x, g_tmp_x);
     function_evaluator_f_df(g_tmp_x, g_tmp_df);
 
-    /* reuse g_tmp_x as a difference buffer: g_tmp_x = g_tmp_df - df_x */
-    vector_copy(g_tmp_df, g_tmp_x, g_dimension);
-    vector_add_ntimes(g_tmp_x, df_x, g_dimension, -1.0);
+    /* The shifted point is no longer needed. Keep the two gradients in
+     * distinct buffers before differencing: df_x must not alias g_tmp_df,
+     * which is overwritten by the shifted evaluation above. */
+    function_evaluator_f_df(x, g_tmp_x);
+    vector_add_ntimes(g_tmp_x, g_tmp_df, g_dimension, -1.0);
 
     numerator = vector_norm2(g_tmp_x, g_dimension);
 
@@ -197,13 +199,8 @@ int panda_eval_cleanup(void)
 real_t panda_eval_initial_gamma(const real_t* x, real_t alpha)
 {
     real_t L;
-    real_t f_dummy;
 
-    /* reuse g_tmp_df as grad buffer at x */
-    f_dummy = function_evaluator_f_df(x, g_tmp_df);
-    (void)f_dummy;
-
-    L = estimate_local_lipschitz(x, g_tmp_df);
+    L = estimate_local_lipschitz(x);
     if (L < 1e-2) {
         L = 1e-2;
     }
@@ -304,8 +301,6 @@ int panda_eval_prev(
     panda_prev_state* out
 )
 {
-    unsigned char upper_dummy;
-
     vector_copy(x, out->x, g_dimension);
     out->gamma = gamma;
 
@@ -321,7 +316,7 @@ int panda_eval_prev(
         out->df_z,
         out->res,
         &out->phi,
-        &upper_dummy
+        &out->upper_ok
     );
 }
 

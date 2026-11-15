@@ -4,6 +4,14 @@ add_executable(test_linear_solvers
 target_link_libraries(test_linear_solvers PANDA_lib)
 add_test(NAME test_linear_solvers COMMAND test_linear_solvers)
 
+add_executable(test_original_kkt_backward test_original_kkt_backward.c)
+target_link_libraries(test_original_kkt_backward ALM_lib)
+add_test(NAME test_original_kkt_backward COMMAND test_original_kkt_backward)
+
+add_executable(test_alm_final_subproblem test_alm_final_subproblem.c)
+target_link_libraries(test_alm_final_subproblem ALM_lib)
+add_test(NAME test_alm_final_subproblem COMMAND test_alm_final_subproblem)
+
 add_executable(test_quadratic_forward_backward
     test_quadratic_forward_backward.c
 )

@@ -1,0 +1,9 @@
+numpy
+casadi
+scipy
+pandas
+matplotlib
+psutil
+threadpoolctl
+memray; sys_platform == 'linux'
+seaborn

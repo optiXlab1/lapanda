@@ -172,7 +172,7 @@ def run_closed_loop_train(model: str, args) -> Path:
             "alm_initial_penalty": args.alm_initial_penalty,
             "alm_penalty_update_factor": args.alm_penalty_update_factor,
             "alm_max_penalty": args.alm_max_penalty,
-            "backward_tolerance": args.alm_tol,
+            "backward_tolerance": getattr(args, "backward_tolerance", args.alm_tol),
             "backward_max_iterations": args.backward_max_iterations,
             "backward_linear_solver": args.backward_linear_solver,
             "backward_constraint_penalty_scale": args.backward_constraint_penalty_scale,

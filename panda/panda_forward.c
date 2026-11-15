@@ -1,6 +1,7 @@
 #include "panda_forward.h"
 
 #include "panda_eval.h"
+#include "function_evaluator.h"
 #include "lbfgs.h"
 #include "matrix_operations.h"
 
@@ -158,6 +159,24 @@ int panda_forward_set_initial(const real_t* x0)
 
     if (panda_eval_prev(x0, gamma0, g_params.alpha, &g_prev) == FAILURE) {
         return FAILURE;
+    }
+
+    /* The first accepted state must satisfy the same upper model as all
+     * subsequent accepted states before its FBE is used in line search. */
+    while (!g_prev.upper_ok || !isfinite(g_prev.f_x) ||
+           !isfinite(g_prev.f_z) || !isfinite(g_prev.phi)) {
+        if (gamma0 <= g_params.minimum_gamma) {
+            g_has_initial_point = FALSE;
+            return FAILURE;
+        }
+        gamma0 *= 0.5;
+        if (gamma0 < g_params.minimum_gamma) {
+            gamma0 = g_params.minimum_gamma;
+        }
+        if (panda_eval_prev(x0, gamma0, g_params.alpha, &g_prev) == FAILURE) {
+            g_has_initial_point = FALSE;
+            return FAILURE;
+        }
     }
 
     lbfgs_reset();
@@ -319,10 +338,23 @@ real_t panda_forward_step(void)
     vector_copy(g_current.x, g_s, g_dimension);
     vector_add_ntimes(g_s, g_prev.x, g_dimension, -1.0);
 
+    /* A secant pair must compare one residual map at two points. If gamma
+     * changed, the stored previous residual belongs to a different map.
+     * Recompute it at the accepted new gamma without modifying the previous
+     * state used by the line search. The direction scratch is no longer used. */
+    if (g_current.gamma != g_prev.gamma) {
+        vector_copy(g_prev.x, g_direction, g_dimension);
+        vector_add_ntimes(g_direction, g_prev.df_x, g_dimension, -g_current.gamma);
+        function_evaluator_proxg(g_direction, g_current.gamma);
+        vector_real_mul(g_direction, g_dimension, -1.0);
+        vector_add_ntimes(g_direction, g_prev.x, g_dimension, 1.0);
+    } else {
+        vector_copy(g_prev.res, g_direction, g_dimension);
+    }
     vector_copy(g_current.res, g_y, g_dimension);
-    vector_add_ntimes(g_y, g_prev.res, g_dimension, -1.0);
+    vector_add_ntimes(g_y, g_direction, g_dimension, -1.0);
 
-    norm_residual_map_prev = vector_norm2(g_prev.res, g_dimension) / g_prev.gamma;
+    norm_residual_map_prev = vector_norm2(g_direction, g_dimension) / g_current.gamma;
     lbfgs_update(g_s, g_y, norm_residual_map_prev);
 
     /*

@@ -145,8 +145,8 @@ int main(void)
     theta[1] = -2.0;
     target[0] = 0.25;
     target[1] = -1.0;
-    u_star[0] = theta[0];
-    u_star[1] = theta[1];
+    u_star[0] = 0.0;
+    u_star[1] = 0.0;
 
     problem.oracle.n = 2;
     problem.oracle.ntheta = 2;
@@ -162,6 +162,7 @@ int main(void)
     problem.solver_params.tolerance = 1e-4;
     problem.solver_params.buffer_size = 5;
     problem.solver_params.max_stable_iter = 0;
+    problem.solver_params.minimum_gamma = 0.0;
     problem.solver_params.verbose = FALSE;
 
     problem.backward_params.enable = TRUE;

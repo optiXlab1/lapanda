@@ -3,6 +3,8 @@
 #include <pybind11/stl.h>
 
 #include <algorithm>
+#include <chrono>
+#include <cmath>
 #include <cstring>
 #include <limits>
 #include <memory>
@@ -22,6 +24,7 @@
 extern "C" {
 #include "../../include/optimizer.h"
 #include "../../alm/alm.h"
+#include "../../alm/alm_kkt.h"
 #include "../../panda/panda_linear_solver.h"
 }
 
@@ -35,6 +38,7 @@ struct SolverOptions {
     unsigned int buffer_size = 10;
     unsigned int max_stable_iter = 0;
     bool verbose = false;
+    double minimum_gamma = 1e-6;
 };
 
 struct BackwardOptions {
@@ -43,6 +47,7 @@ struct BackwardOptions {
     unsigned int max_iterations = 50;
     unsigned int restart = 40;
     std::string linear_solver = "cg";
+    std::string system = "subproblem";
     double constraint_penalty_scale = 1.0;
     double constraint_penalty_max = 0.0;
 };
@@ -193,6 +198,18 @@ struct CompiledOracleContext {
     std::vector<double> box_upper;
     bool has_lower = false;
     bool has_upper = false;
+    // A context belongs to one native entry. Augmented HVP/VJP callbacks
+    // evaluate one accepted backward point, so projection data are invariant
+    // across its Krylov iterations and are invalidated with this context.
+    bool constraint_projection_ready = false;
+    unsigned int subproblem_projection_evaluations = 0;
+    size_t subproblem_workspace_bytes = 0;
+    std::vector<double> projected_multiplier_work;
+    std::vector<double> active_penalty_work;
+    std::vector<double> constraint_jv_work;
+    std::vector<double> constraint_curvature_work;
+    std::vector<double> constraint_weight_work;
+    std::vector<double> constraint_product_work;
 };
 
 static CompiledOracleContext* g_compiled_oracle = nullptr;
@@ -780,6 +797,10 @@ void compiled_constraint_projection_data(
     std::vector<double>& projected_multiplier,
     std::vector<double>& active_penalty)
 {
+    CompiledOracleContext& ctx = *g_compiled_oracle;
+    if (ctx.constraint_projection_ready) {
+        return;
+    }
     const unsigned int ncon = g_compiled_oracle->ncon;
     std::vector<double> c_value(ncon, 0.0);
     if (compiled_constraint(input, theta, variable, c_value.data()) == FAILURE) {
@@ -801,6 +822,11 @@ void compiled_constraint_projection_data(
         projected_multiplier[i] = scaled_penalties[i] * (shifted - projected);
         active_penalty[i] = active ? scaled_penalties[i] : 0.0;
     }
+    const size_t product_size = std::max(ctx.n, ctx.ntheta);
+    ctx.constraint_jv_work.resize(ncon);
+    ctx.constraint_product_work.resize(product_size);
+    ++ctx.subproblem_projection_evaluations;
+    ctx.constraint_projection_ready = true;
 }
 
 int compiled_constraint_hvp(
@@ -817,12 +843,9 @@ int compiled_constraint_hvp(
     try {
         const unsigned int n = g_compiled_oracle->n;
         const unsigned int ncon = g_compiled_oracle->ncon;
-        std::vector<double> projected_multiplier;
-        std::vector<double> active_penalty;
-        std::vector<double> jv(ncon, 0.0);
-        std::vector<double> curvature(n, 0.0);
-        std::vector<double> gn_weight(ncon, 0.0);
-        std::vector<double> gauss_newton(n, 0.0);
+        CompiledOracleContext& ctx = *g_compiled_oracle;
+        std::vector<double>& projected_multiplier = ctx.projected_multiplier_work;
+        std::vector<double>& active_penalty = ctx.active_penalty_work;
         compiled_constraint_projection_data(
             input,
             theta,
@@ -833,6 +856,8 @@ int compiled_constraint_hvp(
             constraint_upper,
             projected_multiplier,
             active_penalty);
+        std::vector<double>& jv = ctx.constraint_jv_work;
+        std::vector<double>& gauss_newton = ctx.constraint_product_work;
         {
             const double* arg[] = { v, input, theta, variable };
             double* res[] = { jv.data() };
@@ -842,19 +867,19 @@ int compiled_constraint_hvp(
         }
         {
             const double* arg[] = { v, input, theta, variable, projected_multiplier.data() };
-            double* res[] = { curvature.data() };
+            double* res[] = { Hv };
             if ((*g_compiled_oracle).constraint_weighted_hvp(arg, res) != 0) {
                 return FAILURE;
             }
         }
         for (unsigned int i = 0; i < ncon; ++i) {
-            gn_weight[i] = active_penalty[i] * jv[i];
+            jv[i] = active_penalty[i] * jv[i];
         }
-        if (compiled_constraint_jtprod(input, theta, variable, gn_weight.data(), gauss_newton.data()) == FAILURE) {
+        if (compiled_constraint_jtprod(input, theta, variable, jv.data(), gauss_newton.data()) == FAILURE) {
             return FAILURE;
         }
         for (unsigned int i = 0; i < n; ++i) {
-            Hv[i] = curvature[i] + gauss_newton[i];
+            Hv[i] += gauss_newton[i];
         }
         return SUCCESS;
     } catch (...) {
@@ -876,12 +901,9 @@ int compiled_constraint_vjp(
     try {
         const unsigned int ntheta = g_compiled_oracle->ntheta;
         const unsigned int ncon = g_compiled_oracle->ncon;
-        std::vector<double> projected_multiplier;
-        std::vector<double> active_penalty;
-        std::vector<double> jv(ncon, 0.0);
-        std::vector<double> curvature(ntheta, 0.0);
-        std::vector<double> gn_weight(ncon, 0.0);
-        std::vector<double> gauss_newton(ntheta, 0.0);
+        CompiledOracleContext& ctx = *g_compiled_oracle;
+        std::vector<double>& projected_multiplier = ctx.projected_multiplier_work;
+        std::vector<double>& active_penalty = ctx.active_penalty_work;
         compiled_constraint_projection_data(
             input,
             theta,
@@ -892,6 +914,8 @@ int compiled_constraint_vjp(
             constraint_upper,
             projected_multiplier,
             active_penalty);
+        std::vector<double>& jv = ctx.constraint_jv_work;
+        std::vector<double>& gauss_newton = ctx.constraint_product_work;
         {
             const double* arg[] = { v, input, theta, variable };
             double* res[] = { jv.data() };
@@ -901,28 +925,117 @@ int compiled_constraint_vjp(
         }
         {
             const double* arg[] = { v, input, theta, variable, projected_multiplier.data() };
-            double* res[] = { curvature.data() };
+            double* res[] = { grad_theta };
             if ((*g_compiled_oracle).constraint_weighted_vjp(arg, res) != 0) {
                 return FAILURE;
             }
         }
         for (unsigned int i = 0; i < ncon; ++i) {
-            gn_weight[i] = active_penalty[i] * jv[i];
+            jv[i] = active_penalty[i] * jv[i];
         }
         {
-            const double* arg[] = { input, theta, variable, gn_weight.data() };
+            const double* arg[] = { input, theta, variable, jv.data() };
             double* res[] = { gauss_newton.data() };
             if ((*g_compiled_oracle).constraint_theta_jtprod(arg, res) != 0) {
                 return FAILURE;
             }
         }
         for (unsigned int i = 0; i < ntheta; ++i) {
-            grad_theta[i] = curvature[i] + gauss_newton[i];
+            grad_theta[i] += gauss_newton[i];
         }
         return SUCCESS;
     } catch (...) {
         return FAILURE;
     }
+}
+
+void release_compiled_constraint_workspace(CompiledOracleContext& ctx, double& reverse_seconds)
+{
+    if (!ctx.constraint_projection_ready) return;
+    const auto start = std::chrono::steady_clock::now();
+    ctx.subproblem_workspace_bytes = sizeof(double) * (
+        ctx.projected_multiplier_work.capacity() + ctx.active_penalty_work.capacity()
+        + ctx.constraint_jv_work.capacity() + ctx.constraint_curvature_work.capacity()
+        + ctx.constraint_weight_work.capacity() + ctx.constraint_product_work.capacity());
+    std::vector<double>().swap(ctx.projected_multiplier_work);
+    std::vector<double>().swap(ctx.active_penalty_work);
+    std::vector<double>().swap(ctx.constraint_jv_work);
+    std::vector<double>().swap(ctx.constraint_curvature_work);
+    std::vector<double>().swap(ctx.constraint_weight_work);
+    std::vector<double>().swap(ctx.constraint_product_work);
+    ctx.constraint_projection_ready = false;
+    // Count cache deallocation in the reported reverse interval, just as
+    // original-KKT counts its C workspace cleanup. Full-call wall also includes it.
+    reverse_seconds += std::chrono::duration<double>(std::chrono::steady_clock::now()-start).count();
+}
+
+void set_subproblem_workspace_result(py::dict& result, const CompiledOracleContext& ctx)
+{
+    result["subproblem_projection_evaluations"] = ctx.subproblem_projection_evaluations;
+    result["subproblem_projection_workspace_bytes"] = py::int_(ctx.subproblem_workspace_bytes);
+}
+
+
+bool original_kkt_requested(const BackwardOptions& options)
+{
+    if(options.system=="subproblem") return false;
+    if(options.system!="original_kkt") throw py::value_error("backward system must be subproblem or original_kkt");
+    if(options.linear_solver!="minres" && options.linear_solver!="auto")
+        throw py::value_error("original_kkt requires linear_solver=minres or auto");
+    if(options.constraint_penalty_scale!=1.0)
+        throw py::value_error("original_kkt uses unscaled forward penalties; penalty scaling is a subproblem option");
+    return true;
+}
+
+int compiled_raw_constraint_jv(const double* v,const double* x,const double* t,const double* z,double* output)
+{
+    const double* arg[]={v,x,t,z};double* res[]={output};
+    return g_compiled_oracle->constraint_jv(arg,res)==0?SUCCESS:FAILURE;
+}
+int compiled_raw_constraint_weighted_hvp(const double* v,const double* x,const double* t,const double* z,const double* y,double* output)
+{
+    const double* arg[]={v,x,t,z,y};double* res[]={output};
+    return g_compiled_oracle->constraint_weighted_hvp(arg,res)==0?SUCCESS:FAILURE;
+}
+int compiled_raw_constraint_weighted_vjp(const double* v,const double* x,const double* t,const double* z,const double* y,double* output)
+{
+    const double* arg[]={v,x,t,z,y};double* res[]={output};
+    return g_compiled_oracle->constraint_weighted_vjp(arg,res)==0?SUCCESS:FAILURE;
+}
+int compiled_raw_constraint_theta_jtprod(const double* x,const double* t,const double* z,const double* y,double* output)
+{
+    const double* arg[]={x,t,z,y};double* res[]={output};
+    return g_compiled_oracle->constraint_theta_jtprod(arg,res)==0?SUCCESS:FAILURE;
+}
+
+int run_compiled_original_kkt(const alm_problem& problem,const std::vector<double>& x,
+    const std::vector<double>& multipliers,const std::vector<double>& penalties,
+    const std::vector<double>& theta,const std::vector<double>& variable,double gamma,
+    const BackwardOptions& options,std::vector<double>& gradient,optimizer_solve_info& solve_info,
+    alm_kkt_info& kkt_info,double& seconds)
+{
+    const auto start=std::chrono::steady_clock::now();
+    alm_kkt_products products;
+    products.constraint_jv=compiled_raw_constraint_jv;
+    products.constraint_weighted_hvp=compiled_raw_constraint_weighted_hvp;
+    products.constraint_weighted_vjp=compiled_raw_constraint_weighted_vjp;
+    products.constraint_theta_jtprod=compiled_raw_constraint_theta_jtprod;
+    int status=alm_backward_original_kkt(&problem,&products,x.data(),multipliers.data(),penalties.data(),
+        theta.data(),variable.data(),gamma,options.tolerance,options.max_iterations,gradient.data(),&kkt_info);
+    seconds=std::chrono::duration<double>(std::chrono::steady_clock::now()-start).count();
+    solve_info.iterations=kkt_info.iterations;solve_info.final_residual=kkt_info.relative_residual;
+    return status;
+}
+
+void set_original_kkt_result(py::dict& result,const alm_kkt_info& info)
+{
+    result["backward_system"]="original_kkt";
+    result["backward_solver_used"]="minres";
+    result["backward_fallback_used"]=false;
+    result["backward_peak_workspace_bytes"]=py::int_(info.peak_workspace_bytes);
+    result["backward_system_dimension"]=info.dimension;
+    result["backward_free_variables"]=info.free_variables;
+    result["backward_active_constraints"]=info.active_constraints;
 }
 
 panda_oracle build_compiled_c_oracle(const CompiledOracleContext& ctx, bool enable_backward)
@@ -1007,6 +1120,7 @@ py::dict solve_panda_impl(
     problem.solver_params.tolerance = solver_options.tolerance;
     problem.solver_params.buffer_size = solver_options.buffer_size;
     problem.solver_params.max_stable_iter = solver_options.max_stable_iter;
+    problem.solver_params.minimum_gamma = solver_options.minimum_gamma;
     problem.solver_params.verbose = solver_options.verbose ? TRUE : FALSE;
     problem.backward_params.enable = backward_options.enable ? TRUE : FALSE;
     problem.backward_params.tolerance = backward_options.tolerance;
@@ -1107,6 +1221,7 @@ py::dict solve_panda_compiled_impl(
     problem.solver_params.tolerance = solver_options.tolerance;
     problem.solver_params.buffer_size = solver_options.buffer_size;
     problem.solver_params.max_stable_iter = solver_options.max_stable_iter;
+    problem.solver_params.minimum_gamma = solver_options.minimum_gamma;
     problem.solver_params.verbose = solver_options.verbose ? TRUE : FALSE;
     problem.backward_params.enable = backward_options.enable ? TRUE : FALSE;
     problem.backward_params.tolerance = backward_options.tolerance;
@@ -1176,6 +1291,8 @@ py::dict solve_alm_impl(
     py::object multiplier0,
     py::object penalty0)
 {
+    if(backward_options.enable && original_kkt_requested(backward_options))
+        throw py::value_error("original_kkt currently requires the compiled backend");
     std::vector<double> solution = checked_vector(x0, oracle.n, "x0");
     std::vector<double> theta_vec = checked_vector(theta, oracle.ntheta, "theta");
     std::vector<double> variable_vec = checked_vector(variable, oracle.nvar, "variable");
@@ -1205,6 +1322,7 @@ py::dict solve_alm_impl(
     problem.inner_solver_params.tolerance = inner_solver_options.tolerance;
     problem.inner_solver_params.buffer_size = inner_solver_options.buffer_size;
     problem.inner_solver_params.max_stable_iter = inner_solver_options.max_stable_iter;
+    problem.inner_solver_params.minimum_gamma = inner_solver_options.minimum_gamma;
     problem.inner_solver_params.verbose = inner_solver_options.verbose ? TRUE : FALSE;
     problem.backward_params.enable = backward_options.enable ? TRUE : FALSE;
     problem.backward_params.tolerance = backward_options.tolerance;
@@ -1283,6 +1401,7 @@ py::dict solve_alm_impl(
     result["penalty"] = info.penalty;
     result["forward_time_sec"] = info.forward_time_sec;
     result["backward_time_sec"] = info.backward_time_sec;
+    result["final_gamma"] = info.final_gamma;
     result["inner_iterations"] = current_alm_inner_iterations();
     result["penalties"] = current_alm_penalties();
     if (backward_options.enable) {
@@ -1318,6 +1437,8 @@ py::dict solve_alm_compiled_impl(
     py::object multiplier0,
     py::object penalty0)
 {
+    const bool original_kkt=backward_options.enable && original_kkt_requested(backward_options);
+    alm_kkt_info kkt_info = {};
     std::vector<double> solution = checked_vector(x0, n, "x0");
     std::vector<double> theta_vec = checked_vector(theta, ntheta, "theta");
     std::vector<double> variable_vec = checked_vector(variable, nvar, "variable");
@@ -1364,6 +1485,7 @@ py::dict solve_alm_compiled_impl(
     problem.inner_solver_params.tolerance = inner_solver_options.tolerance;
     problem.inner_solver_params.buffer_size = inner_solver_options.buffer_size;
     problem.inner_solver_params.max_stable_iter = inner_solver_options.max_stable_iter;
+    problem.inner_solver_params.minimum_gamma = inner_solver_options.minimum_gamma;
     problem.inner_solver_params.verbose = inner_solver_options.verbose ? TRUE : FALSE;
     problem.backward_params.enable = backward_options.enable ? TRUE : FALSE;
     problem.backward_params.tolerance = backward_options.tolerance;
@@ -1398,7 +1520,7 @@ py::dict solve_alm_compiled_impl(
     backward_info.final_residual = 0.0;
 
     int status;
-    if (backward_options.enable) {
+    if (backward_options.enable && !original_kkt) {
         status = alm_solve_with_backward_and_penalty0(
             &problem,
             &params,
@@ -1422,6 +1544,18 @@ py::dict solve_alm_compiled_impl(
             &info);
     }
 
+    /* ALM returns its positive outer-iteration count on success, including 1. */
+    if(backward_options.enable && !original_kkt) {
+        release_compiled_constraint_workspace(ctx,info.backward_time_sec);
+    }
+    if(original_kkt && status>=0 && info.iterations>0) {
+        std::vector<double> final_penalties(ncon);
+        for(unsigned int i=0;i<ncon;++i) final_penalties[i]=alm_get_penalty(i);
+        const int backward_status=run_compiled_original_kkt(problem,solution,multipliers,final_penalties,
+            theta_vec,variable_vec,info.final_gamma,backward_options,grad_theta,backward_info,kkt_info,info.backward_time_sec);
+        if(backward_status==FAILURE) status=-1;
+    }
+
     g_compiled_oracle = nullptr;
     g_constraint_penalty_scale = 1.0;
     g_constraint_penalty_max = 0.0;
@@ -1441,6 +1575,7 @@ py::dict solve_alm_compiled_impl(
     result["penalty"] = info.penalty;
     result["forward_time_sec"] = info.forward_time_sec;
     result["backward_time_sec"] = info.backward_time_sec;
+    result["final_gamma"] = info.final_gamma;
     result["inner_iterations"] = current_alm_inner_iterations();
     result["penalties"] = current_alm_penalties();
     if (backward_options.enable) {
@@ -1454,6 +1589,118 @@ py::dict solve_alm_compiled_impl(
         result["backward_fallback_used"] =
             panda_backward_get_last_fallback_used() != FALSE;
     }
+    if(backward_options.enable) result["backward_system"]=backward_options.system;
+    if(backward_options.enable && !original_kkt) set_subproblem_workspace_result(result,ctx);
+    if(original_kkt) set_original_kkt_result(result,kkt_info);
+    return result;
+}
+
+py::dict backward_alm_compiled_at_solution_impl(
+    const std::string& library_path,
+    unsigned int n,
+    unsigned int ntheta,
+    unsigned int nvar,
+    unsigned int ncon,
+    py::object box_lower,
+    py::object box_upper,
+    py::array_t<double, py::array::c_style | py::array::forcecast> solution_input,
+    py::array_t<double, py::array::c_style | py::array::forcecast> theta,
+    py::array_t<double, py::array::c_style | py::array::forcecast> variable,
+    py::array_t<double, py::array::c_style | py::array::forcecast> constraint_lower,
+    py::array_t<double, py::array::c_style | py::array::forcecast> constraint_upper,
+    py::array_t<double, py::array::c_style | py::array::forcecast> multipliers_input,
+    py::array_t<double, py::array::c_style | py::array::forcecast> penalties_input,
+    double final_gamma,
+    const SolverOptions& inner_solver_options,
+    const BackwardOptions& backward_options)
+{
+    const bool original_kkt=original_kkt_requested(backward_options);
+    alm_kkt_info kkt_info = {};
+    std::vector<double> solution = checked_vector(solution_input, n, "solution");
+    std::vector<double> theta_vec = checked_vector(theta, ntheta, "theta");
+    std::vector<double> variable_vec = checked_vector(variable, nvar, "variable");
+    std::vector<double> lower = checked_vector(constraint_lower, ncon, "constraint_lower");
+    std::vector<double> upper = checked_vector(constraint_upper, ncon, "constraint_upper");
+    std::vector<double> multipliers = checked_vector(multipliers_input, ncon, "multipliers");
+    std::vector<double> penalties = checked_vector(penalties_input, ncon, "penalties");
+
+    CompiledOracleContext ctx;
+    ctx.n = n;
+    ctx.ntheta = ntheta;
+    ctx.nvar = nvar;
+    ctx.ncon = ncon;
+    ctx.box_lower = optional_vector_from_object(box_lower, n, "box_lower");
+    ctx.box_upper = optional_vector_from_object(box_upper, n, "box_upper");
+    ctx.has_lower = !ctx.box_lower.empty();
+    ctx.has_upper = !ctx.box_upper.empty();
+    ctx.library.reset(new SharedLibrary(library_path));
+    ctx.cost_grad.load(*ctx.library, "panda_cost_grad");
+    ctx.constraint.load(*ctx.library, "panda_constraints");
+    ctx.constraint_jtprod.load(*ctx.library, "panda_constraint_jtprod");
+    ctx.hvp.load(*ctx.library, "panda_hvp");
+    ctx.vjp.load(*ctx.library, "panda_vjp");
+    ctx.loss_grad.load(*ctx.library, "panda_loss_grad", false);
+    ctx.constraint_jv.load(*ctx.library, "panda_constraint_jv");
+    ctx.constraint_weighted_hvp.load(*ctx.library, "panda_constraint_weighted_hvp");
+    ctx.constraint_weighted_vjp.load(*ctx.library, "panda_constraint_weighted_vjp");
+    ctx.constraint_theta_jtprod.load(*ctx.library, "panda_constraint_theta_jtprod");
+
+    g_compiled_oracle = &ctx;
+    g_constraint_penalty_scale = backward_options.constraint_penalty_scale;
+    g_constraint_penalty_max = backward_options.constraint_penalty_max;
+    alm_problem problem;
+    problem.oracle = build_compiled_c_oracle(ctx, true);
+    problem.ncon = ncon;
+    problem.constraint_lower = lower.data();
+    problem.constraint_upper = upper.data();
+    problem.constraint = compiled_constraint;
+    problem.constraint_jtprod = compiled_constraint_jtprod;
+    problem.constraint_hvp = compiled_constraint_hvp;
+    problem.constraint_vjp = compiled_constraint_vjp;
+    problem.inner_solver_params.max_iterations = inner_solver_options.max_iterations;
+    problem.inner_solver_params.tolerance = inner_solver_options.tolerance;
+    problem.inner_solver_params.buffer_size = inner_solver_options.buffer_size;
+    problem.inner_solver_params.max_stable_iter = inner_solver_options.max_stable_iter;
+    problem.inner_solver_params.minimum_gamma = inner_solver_options.minimum_gamma;
+    problem.inner_solver_params.verbose = FALSE;
+    problem.backward_params.enable = TRUE;
+    problem.backward_params.tolerance = backward_options.tolerance;
+    problem.backward_params.max_iterations = backward_options.max_iterations;
+    problem.backward_params.restart = backward_options.restart;
+    problem.backward_params.force_solver = backward_solver_from_name(backward_options.linear_solver);
+
+    std::vector<double> grad_theta(ntheta, 0.0);
+    optimizer_solve_info backward_info;
+    double backward_time_sec = 0.0;
+    int status;
+    if(original_kkt) status=run_compiled_original_kkt(problem,solution,multipliers,penalties,
+        theta_vec,variable_vec,final_gamma,backward_options,grad_theta,backward_info,kkt_info,backward_time_sec);
+    else status = alm_backward_at_solution(
+        &problem, solution.data(), multipliers.data(), penalties.data(),
+        theta_vec.data(), variable_vec.data(), final_gamma,
+        grad_theta.data(), &backward_info, &backward_time_sec);
+    if(!original_kkt) release_compiled_constraint_workspace(ctx,backward_time_sec);
+    g_compiled_oracle = nullptr;
+    g_constraint_penalty_scale = 1.0;
+    g_constraint_penalty_max = 0.0;
+    if (status == FAILURE) {
+        throw std::runtime_error("alm_backward_at_solution failed");
+    }
+
+    py::dict result;
+    result["grad_theta"] = array_from_vector(grad_theta);
+    result["backward_time_sec"] = backward_time_sec;
+    result["backward_iterations"] = backward_info.iterations;
+    result["backward_residual"] = backward_info.final_residual;
+    result["backward_peak_workspace_bytes"] =
+        py::int_(panda_backward_get_last_peak_workspace_bytes());
+    result["backward_solver_used"] =
+        backward_solver_name(panda_backward_get_last_solver_used());
+    result["backward_fallback_used"] =
+        panda_backward_get_last_fallback_used() != FALSE;
+    result["backward_system"]=backward_options.system;
+    if(!original_kkt) set_subproblem_workspace_result(result,ctx);
+    if(original_kkt) set_original_kkt_result(result,kkt_info);
     return result;
 }
 
@@ -1461,12 +1708,25 @@ py::dict solve_alm_compiled_impl(
 
 PYBIND11_MODULE(_lapanda, m)
 {
+    m.def("_retain_oracle_library", [](const std::string& path) {
+        return py::capsule(new SharedLibrary(path), [](void* handle) {
+            delete static_cast<SharedLibrary*>(handle);
+        });
+    }, "Keep a generated oracle loaded for the lifetime of its solver object.");
     py::class_<SolverOptions>(m, "SolverOptions")
         .def(py::init<>())
         .def_readwrite("max_iterations", &SolverOptions::max_iterations)
         .def_readwrite("tolerance", &SolverOptions::tolerance)
         .def_readwrite("buffer_size", &SolverOptions::buffer_size)
         .def_readwrite("max_stable_iter", &SolverOptions::max_stable_iter)
+        .def_property("minimum_gamma",
+            [](const SolverOptions& options) { return options.minimum_gamma; },
+            [](SolverOptions& options, double value) {
+                if (!std::isfinite(value) || value <= 0.0) {
+                    throw py::value_error("minimum_gamma must be finite and positive");
+                }
+                options.minimum_gamma = value;
+            })
         .def_readwrite("verbose", &SolverOptions::verbose);
 
     py::class_<BackwardOptions>(m, "BackwardOptions")
@@ -1476,6 +1736,7 @@ PYBIND11_MODULE(_lapanda, m)
         .def_readwrite("max_iterations", &BackwardOptions::max_iterations)
         .def_readwrite("restart", &BackwardOptions::restart)
         .def_readwrite("linear_solver", &BackwardOptions::linear_solver)
+        .def_readwrite("system", &BackwardOptions::system)
         .def_readwrite("constraint_penalty_scale", &BackwardOptions::constraint_penalty_scale)
         .def_readwrite("constraint_penalty_max", &BackwardOptions::constraint_penalty_max);
 
@@ -1565,5 +1826,24 @@ PYBIND11_MODULE(_lapanda, m)
           py::arg("backward_options") = BackwardOptions(),
           py::arg("multiplier0") = py::none(),
           py::arg("penalty0") = py::none());
+
+    m.def("backward_lapanda_compiled_at_solution", &backward_alm_compiled_at_solution_impl,
+          py::arg("library_path"),
+          py::arg("n"),
+          py::arg("ntheta"),
+          py::arg("nvar"),
+          py::arg("ncon"),
+          py::arg("box_lower"),
+          py::arg("box_upper"),
+          py::arg("solution"),
+          py::arg("theta"),
+          py::arg("variable"),
+          py::arg("constraint_lower"),
+          py::arg("constraint_upper"),
+          py::arg("multipliers"),
+          py::arg("penalties"),
+          py::arg("final_gamma"),
+          py::arg("inner_solver_options") = SolverOptions(),
+          py::arg("backward_options") = BackwardOptions());
 
 }

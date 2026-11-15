@@ -1,0 +1,9 @@
+{
+  "command": "python -m experiments.paper.run_preconditioning --study minres --tolerances 1e-2 --memory",
+  "points_per_size": 5,
+  "repetitions": 3,
+  "metric": "Peak live native/Python allocation during the complete backward call; shared inputs, build and loaded code excluded",
+  "timing": "Memory measured separately from the retained uninstrumented timing results",
+  "residual": "Original unscaled relative KKT residual",
+  "all_residual_checks_passed": true
+}

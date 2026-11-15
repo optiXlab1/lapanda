@@ -286,13 +286,14 @@ def build_safepdp_coc(instance):
     raise ValueError(instance.name)
 
 
-def solve_coc(coc, horizon, init_state, theta, control_traj0=None):
+def solve_coc(coc, horizon, init_state, theta, control_traj0=None, forward_tolerance=None):
     with suppress_native_output(True):
         return coc.ocSolver(
             horizon=horizon,
             init_state=init_state,
             auxvar_value=np.asarray(theta, dtype=float),
             control_traj0=control_traj0,
+            solver_options=({'ipopt.tol': float(forward_tolerance)} if forward_tolerance is not None else None),
         )
 
 
@@ -309,7 +310,7 @@ def solve_barrier_oc(coc, horizon, init_state, theta, control_traj0=None):
 def solve_forward(args, coc, horizon, init_state, theta, control_traj0=None):
     if args.sensitivity_mode == "barrier":
         return solve_barrier_oc(coc, horizon, init_state, theta, control_traj0)
-    return solve_coc(coc, horizon, init_state, theta, control_traj0)
+    return solve_coc(coc, horizon, init_state, theta, control_traj0, forward_tolerance=args.tol)
 
 
 def _state_matrix_for_loss(instance, states):

@@ -179,7 +179,9 @@ static int alm_hvp(
         return FAILURE;
     }
 
-    penalty_Hv = (real_t*)malloc(sizeof(real_t) * g_ctx.problem->oracle.n);
+    /* Forward gradient scratch is idle during backward; reuse it for each
+     * augmented HVP rather than allocating another vector per Krylov step. */
+    penalty_Hv = g_ctx.gradient;
     if (penalty_Hv == NULL) {
         return FAILURE;
     }
@@ -194,7 +196,6 @@ static int alm_hvp(
             g_ctx.problem->constraint_lower,
             g_ctx.problem->constraint_upper,
             penalty_Hv) == FAILURE) {
-        free(penalty_Hv);
         return FAILURE;
     }
 
@@ -202,7 +203,6 @@ static int alm_hvp(
         Hv[i] += penalty_Hv[i];
     }
 
-    free(penalty_Hv);
     return SUCCESS;
 }
 
@@ -378,6 +378,79 @@ static void clear_context(void)
     g_ctx.residual = NULL;
     g_ctx.weight = NULL;
     g_ctx.gradient = NULL;
+}
+
+int alm_backward_at_solution(
+    const alm_problem* problem,
+    const real_t* solution,
+    const real_t* multipliers,
+    const real_t* penalties,
+    const real_t* theta,
+    const real_t* variable,
+    real_t final_gamma,
+    real_t* dLdtheta,
+    optimizer_solve_info* backward_info,
+    real_t* backward_time_sec
+)
+{
+    struct optimizer_problem inner_problem;
+    int status;
+    real_t start;
+
+    if (problem == NULL || solution == NULL || multipliers == NULL ||
+        penalties == NULL || theta == NULL || variable == NULL ||
+        dLdtheta == NULL || problem->backward_params.enable == FALSE ||
+        problem->constraint_hvp == NULL || problem->constraint_vjp == NULL) {
+        return FAILURE;
+    }
+    g_ctx.problem = problem;
+    g_ctx.multipliers = multipliers;
+    g_ctx.penalties = penalties;
+    g_ctx.constraint = NULL;
+    g_ctx.slack = NULL;
+    g_ctx.residual = NULL;
+    g_ctx.weight = NULL;
+    g_ctx.gradient = NULL;
+    /* Deferred reverse calls use only jprox, loss_grad, HVP and mixed VJP.
+     * None needs the four constraint-sized forward evaluation buffers. */
+    g_ctx.gradient = (real_t*)malloc(sizeof(real_t) * problem->oracle.n);
+    if (g_ctx.gradient == NULL) {
+        clear_context();
+        return FAILURE;
+    }
+
+    inner_problem.oracle = problem->oracle;
+    inner_problem.oracle.cost_gradient = alm_cost_gradient;
+    inner_problem.oracle.proxg = alm_proxg;
+    inner_problem.oracle.jprox = alm_jprox;
+    inner_problem.oracle.hvp = alm_hvp;
+    inner_problem.oracle.loss_grad = alm_loss_grad;
+    inner_problem.oracle.vjp = alm_vjp;
+    inner_problem.solver_params = problem->inner_solver_params;
+    inner_problem.solver_params.verbose = FALSE;
+    inner_problem.backward_params = problem->backward_params;
+    inner_problem.trace = NULL;
+    inner_problem.trace_context = NULL;
+    if (optimizer_init_backward(&inner_problem) == FAILURE) {
+        clear_context();
+        return FAILURE;
+    }
+    if (optimizer_prepare_backward(theta, variable, final_gamma) == FAILURE) {
+        optimizer_cleanup();
+        clear_context();
+        return FAILURE;
+    }
+    start = alm_now_sec();
+    status = solve_backward(solution, dLdtheta);
+    if (backward_time_sec != NULL) {
+        *backward_time_sec = alm_now_sec() - start;
+    }
+    if (backward_info != NULL) {
+        (void)optimizer_get_backward_info(backward_info);
+    }
+    optimizer_cleanup();
+    clear_context();
+    return status;
 }
 
 unsigned int alm_get_inner_iterations_count(void)
@@ -620,6 +693,7 @@ static int alm_solve_internal(
         info->penalty = used_params.initial_penalty;
         info->forward_time_sec = 0.0;
         info->backward_time_sec = 0.0;
+        info->final_gamma = 0.0;
     }
 
     const real_t forward_t0 = alm_now_sec();
@@ -673,6 +747,11 @@ static int alm_solve_internal(
             break;
         }
 
+        /* Keep the parameters of the last solved subproblem for backward. */
+        if (k + 1 >= used_params.max_iterations) {
+            break;
+        }
+
         for (i = 0; i < problem->ncon; ++i) {
             multipliers[i] += penalties[i] * g_ctx.residual[i];
 
@@ -697,8 +776,18 @@ static int alm_solve_internal(
         previous_violation = violation;
         (void)previous_violation;
     }
+    /* Both reverse strategies have finished all forward evaluations here.
+     * Preserve the evaluator and final gamma, but avoid overlapping reverse
+     * storage with unused PANDA/L-BFGS and ALM forward scratch. Charge this
+     * common forward cleanup to the forward interval for both strategies. */
+    optimizer_release_forward_workspace();
+    free(g_ctx.constraint); g_ctx.constraint = NULL;
+    free(g_ctx.slack); g_ctx.slack = NULL;
+    free(g_ctx.residual); g_ctx.residual = NULL;
+    free(g_ctx.weight); g_ctx.weight = NULL;
     if (info != NULL) {
         info->forward_time_sec = alm_now_sec() - forward_t0;
+        info->final_gamma = get_gamma();
     }
 
     if (status == FAILURE) {

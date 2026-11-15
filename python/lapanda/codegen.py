@@ -44,6 +44,7 @@ def _default_cache_dir() -> Path:
 def _problem_fingerprint(problem: CasadiProblem, name: str) -> str:
     h = hashlib.sha256()
     pieces = [
+        "oracle-build-release-v1",
         name,
         str(ca.vec(problem.u)),
         str(ca.vec(problem.theta)),
@@ -378,6 +379,7 @@ int main(void)
     solver_params.tolerance = 1e-4;
     solver_params.buffer_size = 10;
     solver_params.max_stable_iter = 80;
+    solver_params.minimum_gamma = 1e-6;
     solver_params.verbose = 0;
 
     backward_params.enable = 0;
@@ -456,12 +458,15 @@ set_target_properties({target_name} PROPERTIES
 if(MINGW)
     target_link_options({target_name} PRIVATE -static-libgcc)
 endif()
+if(UNIX)
+    target_link_libraries({target_name} PRIVATE m)
+endif()
 """
     (work_dir / "CMakeLists.txt").write_text(cmake_text, encoding="utf-8")
 
 
 def _build_shared_library(work_dir: Path, build_dir: Path, cmake_generator: Optional[str]) -> None:
-    configure_cmd = ["cmake", "-S", str(work_dir), "-B", str(build_dir)]
+    configure_cmd = ["cmake", "-S", str(work_dir), "-B", str(build_dir), "-DCMAKE_BUILD_TYPE=Release"]
     cmake_defines = []
     if cmake_generator is None:
         cmake_generator = _default_cmake_generator()

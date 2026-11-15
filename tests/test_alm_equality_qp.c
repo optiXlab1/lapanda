@@ -194,6 +194,7 @@ int main(void)
     problem.inner_solver_params.tolerance = 1e-8;
     problem.inner_solver_params.buffer_size = 5;
     problem.inner_solver_params.max_stable_iter = 0;
+    problem.inner_solver_params.minimum_gamma = 0.0;
     problem.inner_solver_params.verbose = FALSE;
 
     params.max_iterations = 20;

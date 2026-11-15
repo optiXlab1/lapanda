@@ -12,6 +12,7 @@ struct solver_parameters {
     unsigned int buffer_size;      /* L-BFGS memory size */
     unsigned int max_stable_iter;  /* used by gamma enlargement */
     unsigned char verbose;         /* write solver traces when nonzero */
+    real_t minimum_gamma;          /* adaptive stepsize floor; zero uses 1e-6 */
 };
 
 struct backward_parameters {
@@ -45,6 +46,12 @@ struct optimizer_problem {
 /* initialize optimizer */
 int optimizer_init(struct optimizer_problem* problem_);
 
+/* Initialize a deferred reverse call without allocating forward PANDA/L-BFGS state. */
+int optimizer_init_backward(struct optimizer_problem* problem_);
+
+/* Keep the accepted parameters/gamma for reverse, releasing unused forward state. */
+int optimizer_release_forward_workspace(void);
+
 /* initialize optimizer with user-provided proximal operator */
 int optimizer_init_with_custom_constraint(
     struct optimizer_problem* problem_,
@@ -71,6 +78,13 @@ int solve_backward_with_options(
     const real_t* u_star,
     const panda_backward_options* opts,
     real_t* dLdtheta
+);
+
+/* Restore the parameters and final forward stepsize for a deferred backward call. */
+int optimizer_prepare_backward(
+    const real_t* theta,
+    const real_t* variable,
+    real_t gamma
 );
 
 /* get final accepted gamma */

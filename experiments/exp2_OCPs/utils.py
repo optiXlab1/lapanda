@@ -184,7 +184,7 @@ def write_run_config(out_dir: Path, name: str, args, instance, extra=None):
     alm_initial_penalty = getattr(args, "alm_initial_penalty", DEFAULT_ALM_INITIAL_PENALTY)
     alm_penalty_update_factor = getattr(args, "alm_penalty_update_factor", DEFAULT_ALM_PENALTY_UPDATE_FACTOR)
     alm_max_penalty = getattr(args, "alm_max_penalty", DEFAULT_ALM_CONFIG.max_penalty)
-    backward_tolerance = getattr(args, "alm_tol", 1e-3)
+    backward_tolerance = getattr(args, "backward_tolerance", getattr(args, "alm_tol", 1e-3))
     backward_max_iterations = getattr(args, "backward_max_iterations", DEFAULT_BACKWARD_CONFIG.max_iterations)
     backward_linear_solver = getattr(
         args, "backward_linear_solver", DEFAULT_BACKWARD_CONFIG.linear_solver
@@ -468,11 +468,22 @@ def solve_lapanda(
     backward_linear_solver: str | None = None,
     backward_constraint_penalty_scale: float | None = None,
     backward_constraint_penalty_max: float | None = None,
+    backward_tolerance: float | None = None,
+    backward_system: str = "subproblem",
     multiplier0=None,
     penalty0=None,
 ):
     from lapanda import AlmOptions, BackwardOptions, SolverOptions
 
+    reverse_options = backward_options(
+        BackwardOptions, compute_backward,
+        alm_tol if backward_tolerance is None else backward_tolerance,
+        max_iterations=backward_max_iterations,
+        linear_solver=backward_linear_solver,
+        constraint_penalty_scale=backward_constraint_penalty_scale,
+        constraint_penalty_max=backward_constraint_penalty_max,
+    )
+    reverse_options.system = backward_system
     return solver.solve_lapanda(
         u0,
         theta,
@@ -488,15 +499,7 @@ def solve_lapanda(
             initial_penalty=alm_initial_penalty,
             penalty_update_factor=alm_penalty_update_factor,
         ),
-        backward_options=backward_options(
-            BackwardOptions,
-            compute_backward,
-            alm_tol,
-            max_iterations=backward_max_iterations,
-            linear_solver=backward_linear_solver,
-            constraint_penalty_scale=backward_constraint_penalty_scale,
-            constraint_penalty_max=backward_constraint_penalty_max,
-        ),
+        backward_options=reverse_options,
         multiplier0=multiplier0,
         penalty0=penalty0,
     )

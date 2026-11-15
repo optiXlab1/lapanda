@@ -491,7 +491,7 @@ def main():
         "training_csv",
         nargs="?",
         default=str(
-            exp3_config.RECTANGLE_C_EXPORT_RESULT_DIR / "rectangle_margin_imitation_c.csv"
+            EXP_DIR.parents[1] / "results" / "embedded" / "device" / "rectangle" / "lapanda" / "rectangle_margin_imitation_c.csv"
         ),
     )
     p.add_argument("--outdir", default=None)
@@ -513,7 +513,7 @@ def main():
     args = p.parse_args()
 
     training_csv = Path(args.training_csv)
-    outdir = Path(args.outdir) if args.outdir else training_csv.parent / "figures"
+    outdir = Path(args.outdir) if args.outdir else EXP_DIR.parents[1] / "runs" / "figures" / "rectangle"
     outdir.mkdir(parents=True, exist_ok=True)
     info = read_training(training_csv)
     training_plot = plot_training(training_csv, outdir)

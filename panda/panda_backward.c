@@ -175,6 +175,7 @@ int panda_backward_compute(
     unsigned int lin_iter;
     unsigned char is_symmetric;
     unsigned char recover_active;
+    unsigned char active_recovery_affects_vjp;
     panda_backward_solver_type force_solver;
     panda_backward_solver_type solver_used;
     size_t outer_workspace_bytes;
@@ -255,11 +256,14 @@ int panda_backward_compute(
     }
 
     nf = 0;
+    active_recovery_affects_vjp = FALSE;
     for (i = 0; i < n; ++i) {
         x[i] = 0.0;
         if (fabs(J[i]) > 1e-12) {
             Fidx[nf] = i;
             nf++;
+        } else if (J[i] != 0.0) {
+            active_recovery_affects_vjp = TRUE;
         }
     }
 
@@ -372,7 +376,10 @@ int panda_backward_compute(
             x[Fidx[i]] = xF[i];
         }
 
-        if (recover_active == TRUE && nf < n) {
+        /* Exact zero box-projector entries are removed by v=-J*x below.
+         * Their recovered adjoint values cannot affect the gradient. Preserve
+         * the generic recovery path for small, nonzero projector entries. */
+        if (recover_active == TRUE && nf < n && active_recovery_affects_vjp == TRUE) {
             if (function_evaluator_hvp(
                     x,
                     u_star,

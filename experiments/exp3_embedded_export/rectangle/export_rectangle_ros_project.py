@@ -96,6 +96,7 @@ int main(void)
     solver_params.tolerance = 1e-3;
     solver_params.buffer_size = 10;
     solver_params.max_stable_iter = 80;
+    solver_params.minimum_gamma = 1e-6;
     solver_params.verbose = 0;
 
     backward_params.enable = 1;

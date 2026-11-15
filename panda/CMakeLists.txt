@@ -31,3 +31,8 @@ add_library(PANDA_fake STATIC
 )
 
 set_property(TARGET PANDA_fake PROPERTY C_STANDARD 90)
+
+if(UNIX)
+    target_link_libraries(PANDA_lib PUBLIC m)
+    target_link_libraries(PANDA_fake PUBLIC m)
+endif()

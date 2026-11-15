@@ -1,0 +1,13 @@
+model,protocol,method,epoch,samples,original_batch_error_percent,samepoint_batch_error_percent,reference_cache_hits,new_reference_points,qualified_original_points,qualified_samepoint_points,snapshot,snapshot_sha256
+cartpole,open,lapanda-alm,800,32,0.015332964434042671,0.011952791225031355,0,32,32,32,results/learning/cartpole/open/lapanda-alm/epoch800.npz,4a19e4d4b91ebbfadddbf1a990cde0dfcbe98fa38ab19511b7f33fa6dca24527
+cartpole,open,lapanda-kkt,800,32,0.00652004514118986,0.0016667980481451289,0,32,32,32,results/learning/cartpole/open/lapanda-kkt/epoch800.npz,83392a2c71b2117a4520fce51cdca8a735bd6bc176a3807c27e23610c0e8ab88
+cartpole,closed,lapanda-alm,500,50,0.4579279189488096,0.008436665060651686,0,50,50,50,results/learning/cartpole/closed/lapanda-alm/epoch500.npz,5e4806fdcb8ac90f528fe379ee5f83a314bfc5ded1c3f501c2907a494956c3d6
+cartpole,closed,lapanda-kkt,500,50,0.1146396934779447,0.006810809921935866,0,50,50,50,results/learning/cartpole/closed/lapanda-kkt/epoch500.npz,52538d729d168721718fe043c70c82e2dfaa7423fe96fa4c0e64ce55664eb433
+quadrotor,open,lapanda-alm,800,32,0.06485310888003017,0.47793609005760657,0,32,32,32,results/learning/quadrotor/open/lapanda-alm/epoch800.npz,419edac628cbc02fa4e241f15a456b276f4770537360d97d422e7f80da8c463c
+quadrotor,open,lapanda-kkt,800,32,0.40196741859897517,0.010272139522630905,0,32,32,32,results/learning/quadrotor/open/lapanda-kkt/epoch800.npz,9a67f5a89e3f6bcbe5ff54a29a74b04a6922df2a0bc854e550edb9671beab0ae
+quadrotor,closed,lapanda-alm,500,50,0.23902728475815918,0.06213338476279561,0,50,44,50,results/learning/quadrotor/closed/lapanda-alm/epoch500.npz,a3dcbc71a8e464a7f46d2f53ea7a74608961080348127735a435a160bf1b1f02
+quadrotor,closed,lapanda-kkt,500,50,0.14434518286772627,0.04582320332320301,0,50,44,50,results/learning/quadrotor/closed/lapanda-kkt/epoch500.npz,e3d8e950f110c50c901087fc5e67f8c0e11cf3578864154aa8096f00482db676
+robot_arm,open,lapanda-alm,800,32,0.11908350880942065,0.07001081796360334,0,32,32,32,results/learning/robot_arm/open/lapanda-alm/epoch800.npz,26c7fc09e37ff0ac91acd67c3bd9c8601a1f50b6cbb20e06187f6b06b99ef12f
+robot_arm,open,lapanda-kkt,800,32,0.010366900528820184,0.0014221976055512787,0,32,32,32,results/learning/robot_arm/open/lapanda-kkt/epoch800.npz,04466d3da8b5e0407091c5c86706c6ae2b51ce40e69c60b76c1aa879e19fcd32
+robot_arm,closed,lapanda-alm,500,50,14.199686919517493,0.04475045955313779,0,50,21,50,results/learning/robot_arm/closed/lapanda-alm/epoch500.npz,775b1149f5d3f01de114f90390f323e290fe1b5b5293b6c33e646e4a9e21bdd3
+robot_arm,closed,lapanda-kkt,500,50,10.829889174993411,0.02573222331503679,0,50,23,50,results/learning/robot_arm/closed/lapanda-kkt/epoch500.npz,ac7646335ce726cfc1e103c9f40b52271a1453eb01ab83b2cc0b37c46251bf17
