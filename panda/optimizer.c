@@ -114,7 +114,7 @@ int optimizer_init(struct optimizer_problem* problem_)
         return FAILURE;
     }
     params.minimum_gamma = problem->solver_params.minimum_gamma > 0.0
-        ? problem->solver_params.minimum_gamma : 1e-6;
+        ? problem->solver_params.minimum_gamma : 1e-8;
     params.max_backtracks = FBE_LINESEARCH_MAX_ITERATIONS;
     params.lbfgs_memory = problem->solver_params.buffer_size;
     params.enable_gamma_enlarge =

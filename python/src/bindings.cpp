@@ -38,7 +38,7 @@ struct SolverOptions {
     unsigned int buffer_size = 10;
     unsigned int max_stable_iter = 0;
     bool verbose = false;
-    double minimum_gamma = 1e-6;
+    double minimum_gamma = 1e-8;
 };
 
 struct BackwardOptions {

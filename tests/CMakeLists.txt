@@ -4,6 +4,10 @@ add_executable(test_linear_solvers
 target_link_libraries(test_linear_solvers PANDA_lib)
 add_test(NAME test_linear_solvers COMMAND test_linear_solvers)
 
+add_executable(test_lbfgs_scale_guard test_lbfgs_scale_guard.c)
+target_link_libraries(test_lbfgs_scale_guard PANDA_lib)
+add_test(NAME test_lbfgs_scale_guard COMMAND test_lbfgs_scale_guard)
+
 add_executable(test_original_kkt_backward test_original_kkt_backward.c)
 target_link_libraries(test_original_kkt_backward ALM_lib)
 add_test(NAME test_original_kkt_backward COMMAND test_original_kkt_backward)

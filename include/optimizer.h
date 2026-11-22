@@ -12,7 +12,7 @@ struct solver_parameters {
     unsigned int buffer_size;      /* L-BFGS memory size */
     unsigned int max_stable_iter;  /* used by gamma enlargement */
     unsigned char verbose;         /* write solver traces when nonzero */
-    real_t minimum_gamma;          /* adaptive stepsize floor; zero uses 1e-6 */
+    real_t minimum_gamma;          /* adaptive stepsize floor; zero uses 1e-8 */
 };
 
 struct backward_parameters {

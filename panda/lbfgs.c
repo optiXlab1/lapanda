@@ -4,6 +4,7 @@
 
 #include <stddef.h>
 #include <stdlib.h>
+#include <math.h>
 
 static real_t** S = NULL;
 static real_t** Y = NULL;
@@ -182,11 +183,40 @@ static int valid_update_pair(const real_t* s_new, const real_t* y_new, real_t no
 {
     real_t sy;
     real_t ss;
+    real_t yy;
+    real_t curvature_scale;
+    real_t roundoff;
+    real_t term;
+    real_t estimate;
+    unsigned int i;
 
-    sy = inner_product(s_new, y_new, dimension);
+    sy = 0.0;
+    curvature_scale = 0.0;
+    for (i = 0; i < dimension; ++i) {
+        term = s_new[i] * y_new[i];
+        sy += term;
+        curvature_scale += fabs(term);
+    }
     ss = inner_product(s_new, s_new, dimension);
+    yy = inner_product(y_new, y_new, dimension);
 
-    if (ss < MACHINE_ACCURACY) {
+    /* For given secant vectors, dot-product roundoff scales with dimension
+     * and sum_i |s_i*y_i|. MACHINE_ACCURACY is DBL_EPSILON (twice the unit
+     * roundoff), leaving margin for computing this scale as well. This does
+     * not bound errors incurred while forming the secant vectors themselves. */
+    if (!isfinite(ss) || !isfinite(sy) || !isfinite(yy) ||
+        !isfinite(curvature_scale) || ss <= 0.0 || yy <= 0.0 ||
+        !isfinite(norm_residual_map_prev) || norm_residual_map_prev < 0.0) {
+        return FAILURE;
+    }
+    roundoff = (real_t)dimension * MACHINE_ACCURACY;
+    if (roundoff >= 1.0) {
+        return FAILURE;
+    }
+    roundoff /= 1.0 - roundoff;
+    estimate = sy / yy;
+    if (sy <= roundoff * curvature_scale || !isfinite(1.0 / sy) ||
+        !isfinite(estimate) || estimate <= 0.0) {
         return FAILURE;
     }
 
