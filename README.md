@@ -140,17 +140,24 @@ Add the lapanda MATLAB interface and CasADi to the path:
 ```matlab
 repo = '<path-to>/lapanda';
 addpath(fullfile(repo, 'matlab'));
-addpath(genpath(fullfile(repo, 'matlab', 'casadi-3.7.2-windows64-matlab2018b')));
+addpath('<path-to-your-CasADi-MATLAB-directory>'); % contains +casadi/
 ```
 
 Then construct a `problem` struct and call:
 
 ```matlab
 solver = lapanda_create_solver(problem, fullfile(tempdir, 'lapanda_demo'));
-result = solver.solve_alm(x0, theta, variable, constraint_lower, constraint_upper, options);
+result = solver.solve_lapanda(x0, theta, variable, constraint_lower, constraint_upper, options);
 ```
 
 See `tutorials/matlab_minimal.m` for a complete minimal example.
+
+MATLAB uses a flat options struct: PANDA fields are `solver_max_iterations`,
+`solver_tolerance`, `solver_buffer_size`, and `solver_max_stable_iter` (not
+`inner_*`). ALM fields use `alm_*`, and backward fields use `backward_*`.
+`solve_alm` remains an alias for `solve_lapanda`. The current MATLAB MEX uses
+the subproblem CG backward path; Python's `backward.system` selection and the
+new split-source build options are not exposed by this MATLAB interface.
 
 ## Usage Examples
 
@@ -372,7 +379,10 @@ solver = lapanda.build_solver(
     name="lapanda_oracle",
     cache_dir=None,
     force=False,
+    build=True,
     cmake_generator=None,
+    split_sources=True,
+    build_jobs=None,
 )
 ```
 
@@ -382,7 +392,10 @@ solver = lapanda.build_solver(
 | `name` | generated oracle/library name for the compiled backend |
 | `cache_dir` | directory for generated C code and build files; default is `.lapanda_cache` |
 | `force` | regenerate and rebuild even when a cached oracle exists |
+| `build` | `False` generates sources only; solve calls require a built library |
 | `cmake_generator` | optional CMake generator string, e.g. `"Ninja"` or a Visual Studio generator |
+| `split_sources` | compile separate operator C files; `False` uses a single translation unit |
+| `build_jobs` | positive integer compiler-job limit; `None` uses up to four jobs |
 
 ### `SolverOptions`
 
@@ -393,7 +406,7 @@ These options control PANDA inner iterations.
 | `max_iterations` | maximum PANDA iterations | `1000`-`4000` |
 | `tolerance` | residual tolerance for the projected fixed-point residual | `1e-3` to `1e-6` |
 | `buffer_size` | L-BFGS correction history size | `10` |
-| `minimum_gamma` | positive lower bound for the adaptive step size; default `1e-6`; lower it for high-curvature objectives | `1e-6` to `1e-8` |
+| `minimum_gamma` | positive lower bound for the adaptive step size; Python default `1e-8`; lower it if needed for high-curvature objectives | `1e-6` to `1e-8` |
 | `max_stable_iter` | number of stable PANDA iterations used before checking whether the step size can be increased; set `0` to disable this check | `80`-`120` |
 | `verbose` | kept for API compatibility; CSV tracing is disabled | `0` |
 
@@ -427,6 +440,12 @@ These options control the residual-based backward solve.
 | `constraint_penalty_scale` | scale applied to the final ALM penalty only in backward constraint callbacks | `1` or `10` |
 | `constraint_penalty_max` | cap for the scaled backward penalty; `0.0` means uncapped | `0.0` or `1e6` |
 
+`system="original_kkt"` applies to compiled ALM solves and requires
+`linear_solver="minres"` or `"auto"`, with `constraint_penalty_scale=1.0`.
+The callback backend implements subproblem differentiation; use the compiled
+backend for the original-KKT strategy. The option tables above describe Python;
+MATLAB uses the separate flat struct described in its tutorial.
+
 ### Solve Calls
 
 Plain PANDA for box/simple projected problems:
@@ -455,6 +474,9 @@ result = solver.solve_lapanda(
 ```
 
 Here `multiplier0` and `penalty0` are optional ALM warm starts. When provided, both should be vectors with the same length as the general constraint vector.
+`adjoint0` is currently accepted for compatibility but ignored; it does not
+warm-start the backward solve. For a separate backward evaluation at a saved
+forward point, the compiled solver provides `backward_lapanda_at_solution`.
 
 Important result fields include `solution`, `grad_theta`, `multipliers`,`penalties`, `forward_time_sec`, `backward_time_sec`, `iterations`,`inner_iterations`, `final_residual`, `backward_iterations`, and `backward_residual`. Backward-enabled calls additionally report `backward_solver_used`, `backward_fallback_used`, and `backward_peak_workspace_bytes`.
 

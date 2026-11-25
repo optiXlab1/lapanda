@@ -9,7 +9,9 @@ function solver = lapanda_create_solver(problem, project_dir, varargin)
 %
 % The returned solver has:
 %   solver.solve_panda(x0, theta, variable, options)
-%   solver.solve_alm(x0, theta, variable, lower, upper, options)
+%   solver.solve_lapanda(x0, theta, variable, lower, upper, options)
+%   solver.solve_alm(...) is an alias for solver.solve_lapanda(...).
+% PANDA settings in options use solver_* fields, not inner_*.
 
 opts = local_options(varargin{:});
 if nargin < 2 || isempty(project_dir)

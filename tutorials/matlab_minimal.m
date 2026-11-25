@@ -26,10 +26,11 @@ solver = lapanda_create_solver( ...
     'Name', 'lapanda_matlab_minimal', ...
     'MexName', 'lapanda_matlab_minimal_mex');
 
-options.inner_max_iterations = 1000;
-options.inner_tolerance = 1e-5;
-options.inner_buffer_size = 10;
-options.inner_max_stable_iter = 80;
+% The MEX reads solver_* (not inner_*) for PANDA options.
+options.solver_max_iterations = 1000;
+options.solver_tolerance = 1e-5;
+options.solver_buffer_size = 10;
+options.solver_max_stable_iter = 80;
 options.alm_max_iterations = 20;
 options.alm_tolerance = 1e-5;
 options.alm_initial_penalty = 10.0;
