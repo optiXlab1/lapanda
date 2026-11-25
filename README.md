@@ -458,4 +458,27 @@ Here `multiplier0` and `penalty0` are optional ALM warm starts. When provided, b
 
 Important result fields include `solution`, `grad_theta`, `multipliers`,`penalties`, `forward_time_sec`, `backward_time_sec`, `iterations`,`inner_iterations`, `final_residual`, `backward_iterations`, and `backward_residual`. Backward-enabled calls additionally report `backward_solver_used`, `backward_fallback_used`, and `backward_peak_workspace_bytes`.
 
+#### Oracle compilation
+
+Compiled solvers generate each CasADi operator in a separate C file and build
+with up to four parallel compiler jobs by default. Derivative products use
+directional AD rather than constructing symbolic Jacobians before multiplying.
+These changes are independent of the problem's stage or constraint structure;
+the library ABI and forward/backward calls remain unchanged.
+
+```python
+solver = build_solver(problem, split_sources=True, build_jobs=4)
+```
+
+Use `split_sources=False` for a single translation unit or `build_jobs=1` to
+limit compiler memory use. Cached libraries are reused; the new code-generation
+version and source layout use separate cache entries, so existing models rebuild
+once after upgrading. Metadata lists the sources used by CMake. A standalone
+combined C file is also retained for compatibility; compile either that file or
+the split sources, not both. Exported C projects use the split sources as well.
+
+Compilation benefits depend on graph structure and available resources. Splitting
+does not subdivide an individual large operator and can increase generated code
+and library size.
+
 </details>

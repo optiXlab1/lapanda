@@ -41,10 +41,12 @@ def _default_cache_dir() -> Path:
     return Path.cwd() / DEFAULT_CACHE_DIR
 
 
-def _problem_fingerprint(problem: CasadiProblem, name: str) -> str:
+def _problem_fingerprint(problem: CasadiProblem, name: str, split_sources: bool = True) -> str:
     h = hashlib.sha256()
     pieces = [
-        "oracle-build-release-v1",
+        "oracle-build-release-directional-v2",
+        ca.__version__,
+        str(split_sources),
         name,
         str(ca.vec(problem.u)),
         str(ca.vec(problem.theta)),
@@ -88,7 +90,7 @@ def _make_oracle_functions(problem: CasadiProblem) -> Tuple[List[ca.Function], D
         ca.Function(
             "panda_vjp",
             [v, u, theta, variable],
-            [ca.densify(ca.jacobian(grad, theta).T @ v)],
+            [ca.densify(ca.jtimes(grad, theta, v, True))],
         ),
     ]
 
@@ -107,7 +109,7 @@ def _make_oracle_functions(problem: CasadiProblem) -> Tuple[List[ca.Function], D
         c = ca.vec(problem.constraints)
         ncon = _numel(c)
         weight = ca.SX.sym("weight", ncon)
-        jtprod = ca.jacobian(c, u).T @ weight
+        jtprod = ca.jtimes(c, u, weight, True)
         functions.extend(
             [
                 ca.Function("panda_constraints", [u, theta, variable], [c]),
@@ -129,12 +131,12 @@ def _make_oracle_functions(problem: CasadiProblem) -> Tuple[List[ca.Function], D
                 ca.Function(
                     "panda_constraint_weighted_vjp",
                     [v, u, theta, variable, weight],
-                    [ca.densify(ca.jacobian(jtprod, theta).T @ v)],
+                    [ca.densify(ca.jtimes(jtprod, theta, v, True))],
                 ),
                 ca.Function(
                     "panda_constraint_theta_jtprod",
                     [u, theta, variable, weight],
-                    [ca.densify(ca.jacobian(c, theta).T @ weight)],
+                    [ca.densify(ca.jtimes(c, theta, weight, True))],
                 ),
             ]
         )
@@ -159,6 +161,8 @@ def generate_compiled_oracle(
     build: bool = True,
     force: bool = False,
     cmake_generator: Optional[str] = None,
+    split_sources: bool = True,
+    build_jobs: Optional[int] = None,
 ) -> GeneratedOracle:
     """Generate CasADi C code and optionally compile it as a shared library.
 
@@ -167,8 +171,10 @@ def generate_compiled_oracle(
     directly in the next performance step.
     """
 
+    if build_jobs is not None and (not isinstance(build_jobs, int) or isinstance(build_jobs, bool) or build_jobs < 1):
+        raise ValueError("build_jobs must be a positive integer or None")
     cache_root = Path(cache_dir) if cache_dir is not None else _default_cache_dir()
-    fingerprint = _problem_fingerprint(problem, name)
+    fingerprint = _problem_fingerprint(problem, name, split_sources)
     work_dir = cache_root / f"{name}_{fingerprint}"
     source_path = work_dir / f"{name}.c"
     header_path = work_dir / f"{name}.h"
@@ -181,11 +187,14 @@ def generate_compiled_oracle(
     work_dir.mkdir(parents=True, exist_ok=True)
 
     cached_library_path = _find_built_library(build_dir, name) if build else None
+    cached_metadata = json.loads(metadata_path.read_text(encoding="utf-8")) if metadata_path.exists() else {}
     cache_ready = (
         not force
         and source_path.exists()
         and header_path.exists()
         and metadata_path.exists()
+        and all((work_dir / p).exists() for p in cached_metadata.get("sources", []))
+        and all((work_dir / p).exists() for p in cached_metadata.get("headers", []))
         and (not build or cached_library_path is not None)
     )
     if cache_ready:
@@ -201,16 +210,32 @@ def generate_compiled_oracle(
         )
 
     functions, metadata = _make_oracle_functions(problem)
-    metadata.update({"name": name, "fingerprint": fingerprint})
+    source_names = [f"{name}_op_{i}.c" for i in range(len(functions))] if split_sources else [source_path.name]
+    header_names = [Path(p).with_suffix(".h").name for p in source_names]
+    metadata.update({"name": name, "fingerprint": fingerprint, "sources": source_names,
+                     "headers": list(dict.fromkeys([header_path.name] + header_names)),
+                     "split_sources": split_sources, "casadi_version": ca.__version__})
 
-    if force or not source_path.exists() or not header_path.exists():
+    if force or not all((work_dir / p).exists() for p in [source_path.name] + metadata["headers"] + source_names):
         old_cwd = Path.cwd()
         try:
             os.chdir(work_dir)
-            generator = ca.CodeGenerator(source_path.name, {"with_header": True})
-            for fun in functions:
-                generator.add(fun)
-            generator.generate()
+            if split_sources:
+                for filename, fun in zip(source_names, functions):
+                    generator = ca.CodeGenerator(filename, {"with_header": True})
+                    generator.add(fun)
+                    generator.generate()
+                # Retain a standalone compatibility TU, but do not compile it
+                # alongside its split equivalents (which export the same ABI).
+                generator = ca.CodeGenerator(source_path.name, {"with_header": True})
+                for fun in functions:
+                    generator.add(fun)
+                generator.generate()
+            else:
+                generator = ca.CodeGenerator(source_path.name, {"with_header": True})
+                for fun in functions:
+                    generator.add(fun)
+                generator.generate()
         finally:
             os.chdir(old_cwd)
 
@@ -218,8 +243,8 @@ def generate_compiled_oracle(
         metadata_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
 
     if build and (force or not library_path.exists()):
-        _write_cmake_project(work_dir, name, source_path.name)
-        _build_shared_library(work_dir, build_dir, cmake_generator)
+        _write_cmake_project(work_dir, name, source_names)
+        _build_shared_library(work_dir, build_dir, cmake_generator, build_jobs)
 
     library_path = _find_built_library(build_dir, name) if build else None
 
@@ -256,13 +281,11 @@ def export_c_project(
         build=False,
         force=True,
     )
-    oracle_source = generated_dir / f"{name}.c"
-    oracle_header = generated_dir / f"{name}.h"
-    shutil.move(str(artifact.source_path), oracle_source)
-    shutil.move(str(artifact.header_path), oracle_header)
+    for filename in dict.fromkeys([artifact.source_path.name] + artifact.metadata["sources"] + artifact.metadata["headers"]):
+        shutil.copy2(artifact.source_path.parent / filename, generated_dir / filename)
     _write_static_config(problem, artifact.metadata, name, generated_dir / "lapanda_generated_config.h")
     _copy_embedded_sources(out_path)
-    _write_embedded_cmake(out_path, name)
+    _write_embedded_cmake(out_path, name, artifact.metadata["sources"])
     _write_example_main(out_path)
     return out_path
 
@@ -320,14 +343,15 @@ def _copy_embedded_sources(out_path: Path) -> None:
         )
 
 
-def _write_embedded_cmake(out_path: Path, oracle_name: str) -> None:
+def _write_embedded_cmake(out_path: Path, oracle_name: str, source_names: Optional[List[str]] = None) -> None:
+    sources = "\n    ".join("generated/" + p for p in (source_names or [f"{oracle_name}.c"]))
     text = f"""cmake_minimum_required(VERSION 3.15)
 project(lapanda_embedded_example C)
 
 set(LAPANDA_ROOT ${{CMAKE_CURRENT_SOURCE_DIR}}/lapanda)
 
 add_library(lapanda_embedded STATIC
-    generated/{oracle_name}.c
+    {sources}
     ${{LAPANDA_ROOT}}/adapters/casadi_static/static_casadi_oracle.c
     ${{LAPANDA_ROOT}}/panda/function_evaluator.c
     ${{LAPANDA_ROOT}}/panda/matrix_operations.c
@@ -351,6 +375,9 @@ target_include_directories(lapanda_embedded PUBLIC
 
 add_executable(lapanda_embedded_demo main_example.c)
 target_link_libraries(lapanda_embedded_demo PRIVATE lapanda_embedded)
+if(UNIX)
+    target_link_libraries(lapanda_embedded PUBLIC m)
+endif()
 """
     (out_path / "CMakeLists.txt").write_text(text, encoding="utf-8")
 
@@ -444,10 +471,11 @@ int main(void)
     (out_path / "main_example.c").write_text(text, encoding="utf-8")
 
 
-def _write_cmake_project(work_dir: Path, target_name: str, source_name: str) -> None:
+def _write_cmake_project(work_dir: Path, target_name: str, source_names: List[str]) -> None:
+    sources = "\n    ".join(source_names)
     cmake_text = f"""cmake_minimum_required(VERSION 3.15)
 project({target_name}_oracle C)
-add_library({target_name} SHARED {source_name})
+add_library({target_name} SHARED\n    {sources}\n)
 set_target_properties({target_name} PROPERTIES
     C_STANDARD 99
     C_STANDARD_REQUIRED ON
@@ -465,7 +493,7 @@ endif()
     (work_dir / "CMakeLists.txt").write_text(cmake_text, encoding="utf-8")
 
 
-def _build_shared_library(work_dir: Path, build_dir: Path, cmake_generator: Optional[str]) -> None:
+def _build_shared_library(work_dir: Path, build_dir: Path, cmake_generator: Optional[str], build_jobs: Optional[int] = None) -> None:
     configure_cmd = ["cmake", "-S", str(work_dir), "-B", str(build_dir), "-DCMAKE_BUILD_TYPE=Release"]
     cmake_defines = []
     if cmake_generator is None:
@@ -481,7 +509,8 @@ def _build_shared_library(work_dir: Path, build_dir: Path, cmake_generator: Opti
                 cmake_defines.append(f"-DCMAKE_MAKE_PROGRAM={_cmake_path(make)}")
     configure_cmd.extend(cmake_defines)
     subprocess.run(configure_cmd, check=True)
-    subprocess.run(["cmake", "--build", str(build_dir), "--config", "Release"], check=True)
+    jobs = build_jobs if build_jobs is not None else min(4, os.cpu_count() or 1)
+    subprocess.run(["cmake", "--build", str(build_dir), "--config", "Release", "--parallel", str(jobs)], check=True)
 
 
 def _default_cmake_generator() -> Optional[str]:

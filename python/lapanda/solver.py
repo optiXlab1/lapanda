@@ -106,6 +106,8 @@ class CompiledSolver(CallbackSolver):
         force: bool = False,
         build: bool = True,
         cmake_generator: Optional[str] = None,
+        split_sources: bool = True,
+        build_jobs: Optional[int] = None,
     ):
         self.problem = problem
         self.oracle = None
@@ -116,6 +118,8 @@ class CompiledSolver(CallbackSolver):
             build=build,
             force=force,
             cmake_generator=cmake_generator,
+            split_sources=split_sources,
+            build_jobs=build_jobs,
         )
         self.compiled_oracle = self.generated_oracle
         # The C++ entry points create per-call workspaces, while this handle
@@ -243,6 +247,8 @@ def build_solver(
     force: bool = False,
     build: bool = True,
     cmake_generator: Optional[str] = None,
+    split_sources: bool = True,
+    build_jobs: Optional[int] = None,
 ):
     if backend == "callback":
         return CallbackSolver(problem)
@@ -254,5 +260,7 @@ def build_solver(
             force=force,
             build=build,
             cmake_generator=cmake_generator,
+            split_sources=split_sources,
+            build_jobs=build_jobs,
         )
     raise ValueError(f"unknown backend: {backend!r}")
